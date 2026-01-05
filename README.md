@@ -1,11 +1,9 @@
 <p align="center"><img src="https://jeffser.com/images/alpaca/logo.svg">
-<h1 align="center">Alpaca</h1>
+<h1 align="center">Nanopaca</h1>
 
-<p align="center">Alpaca is a GNOME desktop AI chat client powered by <a href="https://nano-gpt.com">NanoGPT</a>. Chat with advanced AI models, search the web, generate images, and more - all with a beautiful native interface.</p>
+<p align="center">Nanopaca is a GNOME desktop AI chat client forked from Alpaca and powered by <a href="https://nano-gpt.com">NanoGPT</a>. Chat with advanced AI models, search the web, generate images, and more - all with a beautiful native interface.</p>
 
 <p align="center">Get started by signing up at <a href="https://nano-gpt.com">nano-gpt.com</a> and getting your API key.</p>
-
-<p align="center"><a href='https://flathub.org/apps/com.jeffser.Alpaca'><img width='190' alt='Download on Flathub' src='https://flathub.org/api/badge?locale=en'/></a></p>
 
 ---
 
@@ -13,10 +11,7 @@
 > I am not responsible for any damages to your device or software caused by running code given by any AI models.
 
 > [!IMPORTANT]
-> Please be aware that [GNOME Code of Conduct](https://conduct.gnome.org) applies to Alpaca before interacting with this repository.
-
-> [!WARNING]
-> AI generated issues and PRs will be denied, repeated offense will result in a ban from the repository, AI can be a useful tool but I don't want Alpaca to be vibe-developed, thanks.
+> Please be aware that [GNOME Code of Conduct](https://conduct.gnome.org) applies to Nanopaca before interacting with this repository.
 
 ## Features!
 
@@ -38,15 +33,10 @@
 
 1. **Sign up** at [nano-gpt.com](https://nano-gpt.com)
 2. **Get your API key** from your account dashboard
-3. **Install Alpaca** from Flathub or build from source
+3. **Install Nanopaca** from Flathub or build from source
 4. **Enter your API key** in the setup wizard
 5. **Start chatting** with your chosen model!</p>
 
-## Screenies
-
-Normal conversation | Image recognition | Custom Character | Integrated Script Execution | Web Search Integration
-:------------------:|:-----------------:|:----------------:|:---------------------------:|:--------------------:
-![screenie1](https://jeffser.com/images/alpaca/screenie1.png) | ![screenie2](https://jeffser.com/images/alpaca/screenie2.png) | ![screenie3](https://jeffser.com/images/alpaca/screenie3.png) | ![screenie4](https://jeffser.com/images/alpaca/screenie5.png) | ![screenie5](https://jeffser.com/images/alpaca/screenie6.png)
 
 ## Documentation
 
