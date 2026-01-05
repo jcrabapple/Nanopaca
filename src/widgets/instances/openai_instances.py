@@ -64,7 +64,7 @@ class BaseInstance:
             chat_element.busy = True
             chat_element.set_visible_child_name("content")
 
-        messages = chat_element.convert_to_ollama()[
+        messages = chat_element.convert_to_json()[
             : list(chat_element.container).index(bot_message)
         ]
         return chat_element, messages

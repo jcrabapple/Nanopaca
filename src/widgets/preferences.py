@@ -21,7 +21,6 @@ class PreferencesDialog(Adw.PreferencesDialog):
     __gtype_name__ = "AlpacaPreferencesDialog"
 
     # GENERAL
-    background_switch = Gtk.Template.Child()
     show_model_manager_shortcut_switch = Gtk.Template.Child()
     folder_search_mode_switch = Gtk.Template.Child()
     zoom_spin = Gtk.Template.Child()
@@ -32,6 +31,9 @@ class PreferencesDialog(Adw.PreferencesDialog):
     nanogpt_api_key = Gtk.Template.Child()
     test_api_key_button = Gtk.Template.Child()
     balance_label = Gtk.Template.Child()
+    balance_row = Gtk.Template.Child()
+    balance_amount_label = Gtk.Template.Child()
+    refresh_balance_button = Gtk.Template.Child()
     default_model = Gtk.Template.Child()
     title_model = Gtk.Template.Child()
     subscription_only = Gtk.Template.Child()
@@ -90,7 +92,6 @@ class PreferencesDialog(Adw.PreferencesDialog):
         )
         self.close()
 
-    @Gtk.Template.Callback()
     def activity_terminal_type_changed(self, dropdown, gparam=None):
         selected_index = dropdown.get_selected()
         self.activity_terminal_ssh_user.set_visible(selected_index == 1)
@@ -109,38 +110,73 @@ class PreferencesDialog(Adw.PreferencesDialog):
 
         if not api_key:
             self.balance_label.set_text(_("Please enter an API key"))
+            self.balance_label.remove_css_class("success")
+            self.balance_label.add_css_class("error")
             return
 
+        # Clear previous status and show testing state
+        self.balance_label.set_text(_("Testing API key..."))
+        self.balance_label.remove_css_class("success")
+        self.balance_label.remove_css_class("error")
+        
         button.set_sensitive(False)
         button.set_label(_("Testing..."))
 
         GLib.timeout_add(100, lambda: self.test_nanogpt_api_key(api_key, button))
 
     def test_nanogpt_api_key(self, api_key, button):
-        """Validate API key and fetch balance"""
+        """Validate API key by fetching models"""
         try:
-            response = requests.post(
-                "https://nano-gpt.com/api/v1/check-balance",
-                headers={"x-api-key": api_key},
+            response = requests.get(
+                "https://nano-gpt.com/api/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
                 timeout=10,
             )
 
             if response.status_code == 200:
-                data = response.json()
-                balance = data.get("balance", 0)
-                self.balance_label.set_text(_("Balance: ${:.2f}").format(balance))
+                self.balance_label.set_text(_("API key is valid"))
+                self.balance_label.remove_css_class("error")
                 self.balance_label.add_css_class("success")
 
                 # Save API key to instance
                 self.save_nanogpt_settings()
+                
+                # Try to get balance from models response first
+                data = response.json()
+                balance = 0
+                
+                # Check if balance is included in models response
+                if "balance" in data:
+                    balance = data["balance"]
+                elif "data" in data and "balance" in data["data"]:
+                    balance = data["data"]["balance"]
+                elif "credit" in data:
+                    balance = data["credit"]
+                elif "data" in data and "credit" in data["data"]:
+                    balance = data["data"]["credit"]
+                
+                # If we found a balance, display it
+                if balance > 0:
+                    self.balance_amount_label.set_text(_("${:.2f}").format(balance))
+                    logger.info(f"Balance found in models response: ${balance:.2f}")
+                else:
+                    # If no balance in models response, try the balance endpoint
+                    self.balance_amount_label.set_text(_("--"))
+                    GLib.timeout_add(100, lambda: self.fetch_balance(api_key))
+                
+                logger.info(f"API validation successful, models response: {data}")
             else:
                 self.balance_label.set_text(_("Invalid API key"))
+                self.balance_label.remove_css_class("success")
                 self.balance_label.add_css_class("error")
+                self.balance_amount_label.set_text(_("--"))
 
         except Exception as e:
             logger.error(f"API key validation failed: {e}")
             self.balance_label.set_text(_("Connection error"))
+            self.balance_label.remove_css_class("success")
             self.balance_label.add_css_class("error")
+            self.balance_amount_label.set_text(_("--"))
 
         finally:
             button.set_sensitive(True)
@@ -232,20 +268,107 @@ class PreferencesDialog(Adw.PreferencesDialog):
             logger.error(f"Failed to load NanoGPT settings: {e}")
 
     def fetch_balance(self, api_key):
-        """Fetch and display balance"""
+        """Fetch and display balance from NanoGPT API using exact working example format"""
         try:
+            # Make API request exactly as shown in working example
             response = requests.post(
-                "https://nano-gpt.com/api/v1/check-balance",
+                "https://nano-gpt.com/api/check-balance",
                 headers={"x-api-key": api_key},
                 timeout=10,
             )
 
+            logger.info(f"Balance API response status: {response.status_code}")
+            logger.info(f"Balance API raw response: {response.text}")
+
             if response.status_code == 200:
-                data = response.json()
-                balance = data.get("balance", 0)
-                self.balance_label.set_text(_("Balance: ${:.2f}").format(balance))
+                try:
+                    data = response.json()
+                    logger.info(f"Balance API parsed data: {data}")
+                    
+                    # Simple and robust balance extraction
+                    balance = 0
+                    
+                    # Handle different response formats
+                    if isinstance(data, dict):
+                        # Try the actual field names from the API response first
+                        if "usd_balance" in data:
+                            balance = float(data["usd_balance"])
+                            logger.info(f"Found USD balance: {balance}")
+                        elif "nano_balance" in data:
+                            balance = float(data["nano_balance"])
+                            logger.info(f"Found Nano balance: {balance}")
+                        # Also try the previous field names for compatibility
+                        elif "balance" in data:
+                            balance = data["balance"]
+                        elif "credit" in data:
+                            balance = data["credit"]
+                        elif "amount" in data:
+                            balance = data["amount"]
+                        elif "data" in data:
+                            # Check nested data
+                            nested = data["data"]
+                            if isinstance(nested, dict):
+                                if "usd_balance" in nested:
+                                    balance = float(nested["usd_balance"])
+                                elif "nano_balance" in nested:
+                                    balance = float(nested["nano_balance"])
+                                elif "balance" in nested:
+                                    balance = nested["balance"]
+                                elif "credit" in nested:
+                                    balance = nested["credit"]
+                                elif "amount" in nested:
+                                    balance = nested["amount"]
+                    elif isinstance(data, (int, float)):
+                        # Direct numeric response
+                        balance = data
+                    elif isinstance(data, list) and len(data) > 0:
+                        # List response - try first item
+                        first = data[0]
+                        if isinstance(first, (int, float)):
+                            balance = first
+                        elif isinstance(first, dict):
+                            if "balance" in first:
+                                balance = first["balance"]
+                            elif "credit" in first:
+                                balance = first["credit"]
+                            elif "amount" in first:
+                                balance = first["amount"]
+                    
+                    # Display the balance
+                    if isinstance(balance, (int, float)):
+                        self.balance_amount_label.set_text(_("${:.2f}").format(balance))
+                        logger.info(f"Successfully displayed balance: ${balance:.2f}")
+                    else:
+                        logger.error(f"Balance value is not numeric: {balance} (type: {type(balance)})")
+                        self.balance_amount_label.set_text(_("--"))
+                        
+                except json.JSONDecodeError as e:
+                    logger.error(f"Failed to parse JSON response: {e}")
+                    logger.error(f"Raw response: {response.text}")
+                    self.balance_amount_label.set_text(_("--"))
+            else:
+                logger.error(f"API request failed with status {response.status_code}")
+                self.balance_amount_label.set_text(_("--"))
+
         except Exception as e:
+            logger.error(f"Balance fetch failed: {e}")
+            self.balance_amount_label.set_text(_("--"))
             logger.error(f"Failed to fetch balance: {e}")
+            self.balance_label.set_text(_("Connection error"))
+            self.balance_label.remove_css_class("success")
+            self.balance_label.add_css_class("error")
+            self.balance_amount_label.set_text(_("--"))
+
+    def on_refresh_balance(self, button):
+        """Refresh the account balance"""
+        api_key = self.nanogpt_api_key.get_text().strip()
+        if api_key:
+            self.balance_amount_label.set_text(_("--"))  # Clear old balance while fetching
+            GLib.timeout_add(100, lambda: self.fetch_balance(api_key))
+        else:
+            self.balance_label.set_text(_("Please enter an API key first"))
+            self.balance_label.remove_css_class("success")
+            self.balance_label.add_css_class("error")
 
     def load_nanogpt_models(self):
         """Load available NanoGPT models into dropdowns"""
@@ -274,18 +397,17 @@ class PreferencesDialog(Adw.PreferencesDialog):
                     data = response.json()
                     models = data.get("data", [])
 
-                    # Get model store
-                    model_store = self.default_model.get_model()
-                    title_store = self.title_model.get_model()
-
-                    model_store.remove_all()
-                    title_store.remove_all()
+                    # Get model store and clear by creating new StringList
+                    model_store = Gio.ListStore.new(Gtk.StringObject)
+                    self.default_model.set_model(model_store)
+                    title_store = Gio.ListStore.new(Gtk.StringObject)
+                    self.title_model.set_model(title_store)
 
                     # Add models
                     for model in models:
                         model_name = model.get("name", model["id"])
-                        model_store.append(model_name)
-                        title_store.append(model_name)
+                        model_store.append(Gtk.StringObject.new(model_name))
+                        title_store.append(Gtk.StringObject.new(model_name))
 
                     # Set selected models
                     default_model = properties.get("default_model")
@@ -305,7 +427,6 @@ class PreferencesDialog(Adw.PreferencesDialog):
         except Exception as e:
             logger.error(f"Failed to load NanoGPT models: {e}")
 
-    @Gtk.Template.Callback()
     def on_nanogpt_model_changed(self, dropdown, prop_name):
         """Save model selection when changed"""
         selected = dropdown.get_selected_item()
@@ -333,14 +454,10 @@ class PreferencesDialog(Adw.PreferencesDialog):
 
         # NANOGPT signal connections
         self.test_api_key_button.connect("clicked", self.on_test_api_key)
+        self.refresh_balance_button.connect("clicked", self.on_refresh_balance)
+        self.default_model.connect("notify::selected", self.on_nanogpt_model_changed)
 
         # GENERAL
-        self.settings.bind(
-            "hide-on-close",
-            self.background_switch,
-            "active",
-            Gio.SettingsBindFlags.DEFAULT,
-        )
         self.settings.bind(
             "show-model-manager-shortcut",
             self.show_model_manager_shortcut_switch,
@@ -363,9 +480,6 @@ class PreferencesDialog(Adw.PreferencesDialog):
             Gio.SettingsBindFlags.DEFAULT,
         )
         self.mic_group.set_visible(importlib.util.find_spec("whisper"))
-
-        if sys.platform in ("win32", "darwin"):  # MacOS and Windows
-            self.background_switch.set_visible(False)
 
         self.settings.bind(
             "max-image-size",
@@ -466,10 +580,9 @@ class PreferencesDialog(Adw.PreferencesDialog):
             Gio.SettingsBindFlags.DEFAULT,
         )
 
-        if not self.settings.get_value("activity-terminal-username").unpack():
-            self.settings.set_string("activity-terminal-username", os.getenv("USER"))
         if not self.settings.get_value("activity-terminal-ip").unpack():
             self.settings.set_string("activity-terminal-ip", "127.0.0.1")
+        self.activity_terminal_type.connect("notify::selected", self.activity_terminal_type_changed)
         self.activity_terminal_type_changed(self.activity_terminal_type)
 
         for m in REMBG_MODELS.values():
@@ -487,6 +600,10 @@ class PreferencesDialog(Adw.PreferencesDialog):
         # NANOGPT
         self.load_nanogpt_settings()
         self.load_nanogpt_models()
+        
+        # Initialize balance UI
+        self.balance_label.set_text("")  # Clear the "Loading..." text
+        self.balance_amount_label.set_text(_("--"))  # Show "--" for no balance initially
 
 
 def get_zoom():

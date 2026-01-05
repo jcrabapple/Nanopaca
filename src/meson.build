@@ -69,7 +69,7 @@ blueprints = custom_target('blueprints',
   input: blueprints,
   output: '.',
   command: [
-    find_program('blueprint-compiler', version: '>= 0.18.0'),
+    find_program('blueprint-compiler', version: '>= 0.16.0'),
     'batch-compile',
     '@OUTPUT@',
     '@CURRENT_SOURCE_DIR@',

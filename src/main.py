@@ -115,7 +115,9 @@ class AlpacaService:
                 return
 
     def Create(self, chat_name: str):
-        self.app.props.active_window.new_chat(chat_name)
+        chat_list_page = self.app.props.active_window.get_chat_list_page()
+        if chat_list_page:
+            chat_list_page.new_chat(chat_name)
         self.Present()
 
     def Ask(self, message: str):
@@ -320,6 +322,7 @@ def main(version):
     logger.info(f"Alpaca version: {version}")
 
     application = AlpacaApplication(version)
+    Adw.StyleManager.get_default().set_color_scheme(Adw.ColorScheme.PREFER_DARK)
     # Check if Alpaca is already running and parse the args
     try:
         bus = SessionBus()

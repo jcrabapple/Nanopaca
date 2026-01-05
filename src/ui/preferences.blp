@@ -61,12 +61,12 @@ template $AlpacaPreferencesDialog: Adw.PreferencesDialog {
     }
   }
 
-  Adw.PreferencesPage nanogpt_page {
-    icon-name: "cloud-symbolic";
-    title: _("NanoGPT");
+  Adw.PreferencesPage account_page {
+    icon-name: "user-info-symbolic";
+    title: _("Account");
 
     Adw.PreferencesGroup {
-      title: _("API Configuration");
+      title: _("NanoGPT Account");
 
       Adw.PasswordEntryRow nanogpt_api_key {
         title: _("API Key");
@@ -76,18 +76,46 @@ template $AlpacaPreferencesDialog: Adw.PreferencesDialog {
         title: _("Test Connection");
         subtitle: _("Verify your API key and check balance");
 
+        [suffix]
         Gtk.Button test_api_key_button {
           label: _("Test");
           styles ["suggested-action"]
+          clicked => $on_test_api_key();
         }
       }
 
       Gtk.Label balance_label {
-        label: _("Balance: --");
+        label: _("Loading...");
         halign: start;
         margin-top: 6;
       }
     }
+
+    Adw.PreferencesGroup {
+      Adw.ActionRow balance_row {
+        title: _("Account Balance");
+        subtitle: _("Current NanoGPT account balance");
+
+        [suffix]
+        Gtk.Label balance_amount_label {
+          label: _("--");
+          styles ["caption-foreground"]
+        }
+
+        [suffix]
+        Gtk.Button refresh_balance_button {
+          icon-name: "view-refresh-symbolic";
+          tooltip-text: _("Refresh balance");
+          styles ["image-button"]
+          clicked => $on_refresh_balance();
+        }
+      }
+    }
+  }
+
+  Adw.PreferencesPage nanogpt_page {
+    icon-name: "cloud-symbolic";
+    title: _("NanoGPT");
 
     Adw.PreferencesGroup {
       title: _("Model Settings");
@@ -108,13 +136,10 @@ template $AlpacaPreferencesDialog: Adw.PreferencesDialog {
         title: _("Show Subscription Models Only");
         subtitle: _("Filter model list to subscription-included models");
       }
-    }
-
-    Adw.PreferencesGroup {
-      title: _("Web Search");
 
       Adw.SwitchRow web_search_enabled {
         title: _("Enable Web Search");
+        subtitle: _("Allow the model to search the web");
       }
 
       Adw.ComboRow web_search_depth {
@@ -286,7 +311,6 @@ template $AlpacaPreferencesDialog: Adw.PreferencesDialog {
       Adw.ComboRow activity_terminal_type {
         title: _("Connection Type");
         subtitle: _("How Alpaca will connect to your device");
-        notify::selected => $activity_terminal_type_changed();
 
         model: StringList {
           strings [

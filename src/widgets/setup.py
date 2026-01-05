@@ -37,7 +37,6 @@ class SetupDialog(Adw.Dialog):
     api_key_entry = Gtk.Template.Child()
     test_api_key_button = Gtk.Template.Child()
     api_key_status_label = Gtk.Template.Child()
-    balance_label = Gtk.Template.Child()
     next_button = Gtk.Template.Child()
 
     # Page 3: Model Selection
@@ -55,6 +54,9 @@ class SetupDialog(Adw.Dialog):
         # Initialize model store
         self.model_store = Gio.ListStore.new(ModelRow)
         self.model_dropdown.set_model(self.model_store)
+
+        # Setup model dropdown expression to display model names
+        self.model_dropdown.set_expression(Gtk.PropertyExpression.new(ModelRow, None, "name"))
 
         # Connect signals
         self.test_api_key_button.connect("clicked", self.on_test_api_key)
@@ -86,29 +88,29 @@ class SetupDialog(Adw.Dialog):
         GLib.timeout_add(100, lambda: self.validate_api_key(api_key))
 
     def validate_api_key(self, api_key):
-        """Validate API key and fetch balance"""
+        """Validate API key by fetching models"""
         try:
-            response = requests.post(
-                "https://nano-gpt.com/api/v1/check-balance",
-                headers={"x-api-key": api_key},
+            # Validate by fetching models
+            response = requests.get(
+                "https://nano-gpt.com/api/v1/models",
+                headers={"Authorization": f"Bearer {api_key}"},
                 timeout=10,
             )
 
             if response.status_code == 200:
-                data = response.json()
-                balance = data.get("balance", 0)
                 self.validated_api_key = api_key
-                self.balance_label.set_text(f"${balance:.2f}")
                 self.api_key_status_label.set_text(_("✓ Valid API key"))
                 self.api_key_status_label.add_css_class("success")
                 self.next_button.set_sensitive(True)
             else:
+                self.validated_api_key = None
                 self.api_key_status_label.set_text(_("✗ Invalid API key"))
                 self.api_key_status_label.add_css_class("error")
                 self.next_button.set_sensitive(False)
 
         except Exception as e:
             logger.error(f"API key validation failed: {e}")
+            self.validated_api_key = None
             self.api_key_status_label.set_text(_("✗ Connection error"))
             self.api_key_status_label.add_css_class("error")
 
@@ -199,12 +201,30 @@ class SetupDialog(Adw.Dialog):
                 "system_prompt": "",
             },
         )
+        
+        # Add selected model to instance model list
+        SQL.append_online_instance_model_list(instance_id, self.selected_model)
 
         # Mark setup as complete
-        self.get_root().settings.set_value("skip-welcome", GLib.Variant("b", True))
+        root = self.get_root()
+        root.settings.set_value("skip-welcome", GLib.Variant("b", True))
 
-        # Close setup and reload
-        self.get_root().on_setup_complete()
+        # Close setup dialog first
+        self.close()
+
+        # Wait for the dialog to close and UI to settle, then create chat
+        def create_chat():
+            chat_list_page = root.get_chat_list_page()
+            if chat_list_page:
+                logger.info(f"on_finish_setup: chat_list_page = {type(chat_list_page).__name__}")
+                new_chat = chat_list_page.new_chat()
+                # Select the new chat row
+                chat_list_page.chat_list_box.select_row(new_chat.row)
+                logger.info(f"on_finish_setup: created chat = {new_chat.get_name()}")
+            else:
+                logger.warning("on_finish_setup: chat_list_page is None")
+
+        GLib.timeout_add(500, create_chat)
 
 
 class ModelRow(GObject.Object):

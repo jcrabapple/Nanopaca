@@ -101,24 +101,16 @@ class AlpacaWindow(Adw.ApplicationWindow):
 
     @Gtk.Template.Callback()
     def add_instance(self, button):
-        def selected(ins):
-            if ins.instance_type == "ollama:managed" and not shutil.which("ollama"):
-                Widgets.dialog.simple(
-                    parent=button.get_root(),
-                    heading=_("Ollama Was Not Found"),
-                    body=_(
-                        "To add a managed Ollama instance, you must have Ollama installed locally in your device, this is a simple process and should not take more than 5 minutes."
-                    ),
-                    callback=lambda: Gio.AppInfo.launch_default_for_uri(
-                        "https://jeffser.com/alpaca/installation-guide.html"
-                    ),
-                    button_name=_("Open Tutorial in Web Browser"),
-                )
-            else:
-                instance = ins(instance_id=None, properties={})
-                Widgets.instances.InstancePreferencesDialog(instance).present(self)
+        logger.info("add_instance: called")
+        
+        # For NanoGPT, directly show the instance preferences dialog
+        from .widgets.instances.openai_instances import NanoGPT
+        instance = NanoGPT(instance_id=None, properties={})
+        logger.info(f"add_instance: created NanoGPT instance, instance_type={instance.instance_type}")
+        
+        Widgets.instances.InstancePreferencesDialog(instance).present(self)
+        logger.info("add_instance: presented dialog")
 
-        options = {}
         Widgets.instances.update_instance_list(
             instance_listbox=self.instance_listbox,
             selected_instance_id=self.settings.get_value("selected-instance").unpack(),
@@ -178,14 +170,94 @@ class AlpacaWindow(Adw.ApplicationWindow):
         """Handle window close request"""
         pass
 
+    def reload_instances(self):
+        """Reload the instance list from SQL"""
+        Widgets.instances.update_instance_list(
+            instance_listbox=self.instance_listbox,
+            selected_instance_id=self.settings.get_value("selected-instance").unpack(),
+        )
+        if self.model_manager:
+            GLib.idle_add(self.model_manager.update_added_model_list)
+
     def prepare_alpaca(self):
         """Prepare the main Alpaca interface"""
-        pass
+        # Initialize instance list
+        self.reload_instances()
 
-    def send_message(self):
+        # Initialize chat list with root folder if empty
+        stack = self.chat_list_navigationview.get_navigation_stack()
+        if not stack or len(stack) == 0:
+            root_folder = Widgets.chat.Folder()
+            self.chat_list_navigationview.add(root_folder)
+
+    def send_message(self, mode:int=0, available_tools:dict={}):
         """Send message from global footer - called by message widget as callback"""
-        pass
+        logger.info("send_message: called")
+        
+        # Get current chat
+        chat = self.chat_bin.get_child()
+        if not chat:
+            logger.warning("send_message: no chat in chat_bin")
+            # Create a new chat automatically
+            chat_list_page = self.get_chat_list_page()
+            if chat_list_page:
+                chat = chat_list_page.new_chat()
+                chat_list_page.chat_list_box.select_row(chat.row)
+                # Retry send after UI update
+                GLib.idle_add(lambda: self.send_message(mode, available_tools))
+                return
+            return
+            
+        # Get active instance
+        instance = self.get_active_instance()
+        if not instance:
+            logger.warning("send_message: no active instance")
+            return
+            
+        # Get model
+        model = instance.get_default_model()
+        if not model:
+            logger.warning("send_message: no model selected")
+            return
 
+        # Get message text
+        buffer = self.global_footer.get_buffer()
+        start = buffer.get_start_iter()
+        end = buffer.get_end_iter()
+        raw_message = buffer.get_text(start, end, False)
+        
+        if not raw_message or not raw_message.strip():
+            return
+            
+        # Clear the buffer
+        buffer.delete(buffer.get_start_iter(), buffer.get_end_iter())
+        
+        # Create and add user message
+        from .widgets.message import Message
+        user_message = Message(
+            dt=datetime.now(),
+            mode=mode,
+            author=_("You")
+        )
+        chat.container.append(user_message)
+        user_message.block_container.set_content(raw_message)
+        
+        # Save user message to database
+        SQL.insert_or_update_message(user_message)
+        
+        # Create bot message
+        bot_message = Message(
+            dt=datetime.now(),
+            mode=1,
+            author=model
+        )
+        chat.container.append(bot_message)
+        
+        # Generate AI response
+        chat.busy = True
+        self.global_footer.toggle_action_button(False)
+        threading.Thread(target=instance.generate_message, args=(bot_message, model), daemon=True).start()
+        
     def on_setup_complete(self):
         """Called when setup wizard completes"""
         # Reload main interface
@@ -199,6 +271,9 @@ class AlpacaWindow(Adw.ApplicationWindow):
             if selected:
                 return selected.instance
         return None
+
+    def get_current_instance(self):
+        return self.get_active_instance()
 
     def on_chat_imported(self, file):
         if file:
@@ -413,6 +488,35 @@ class AlpacaWindow(Adw.ApplicationWindow):
             # Show setup dialog instead of welcome
             setup_dialog = Widgets.setup.SetupDialog()
             setup_dialog.present(self)
+            setup_dialog.connect("closed", lambda *_: self.reload_instances())
         else:
-            # Normal startup - go directly to chat
-            pass
+            # Normal startup - create new chat if none exist
+            def ensure_chat():
+                chat_list_page = self.get_chat_list_page()
+                if not chat_list_page:
+                    logger.warning("ensure_chat: chat_list_page is None")
+                    return False
+                    
+                logger.info(f"ensure_chat: chat_list_page = {type(chat_list_page).__name__}")
+                
+                chats = SQL.get_chats_by_folder()
+                logger.info(f"ensure_chat: chats = {chats}, len = {len(chats) if chats else 0}")
+                
+                if not chats:
+                    logger.info("ensure_chat: no chats found, creating new chat")
+                    new_chat = chat_list_page.new_chat()
+                    if new_chat and new_chat.row:
+                        chat_list_page.chat_list_box.select_row(new_chat.row)
+                        logger.info(f"ensure_chat: created and selected chat = {new_chat.get_name()}")
+                    else:
+                        logger.warning(f"ensure_chat: new_chat or new_chat.row is None: new_chat={new_chat}")
+                else:
+                    logger.info(f"ensure_chat: chats already exist, selecting first one")
+                    if chat_list_page.chat_list_box:
+                        first_row = chat_list_page.chat_list_box.get_row_at_index(0)
+                        if first_row:
+                            chat_list_page.chat_list_box.select_row(first_row)
+                            
+                return False  # Don't repeat
+            
+            GLib.timeout_add(300, ensure_chat)

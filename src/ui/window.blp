@@ -284,26 +284,26 @@ template $AlpacaWindow: Adw.ApplicationWindow {
                 title: _("Added Instances");
                 description: _("Manage your AI instances, chats and messages are shared between instances when generating responses.");
 
-                header-suffix: Button {
-                  icon-name: "list-add-symbolic";
-                  valign: center;
-                  tooltip-text: _("Add Instance");
-                  clicked => $add_instance();
+                 header-suffix: Button add_instance_button {
+                   icon-name: "list-add-symbolic";
+                   valign: center;
+                   tooltip-text: _("Add Account");
+                   clicked => $add_instance();
 
-                  styles [
-                    "flat",
-                  ]
-                };
+                   styles [
+                     "flat",
+                   ]
+                 };
 
-                ListBox instance_listbox {
-                  selection-mode: single;
-                  row-selected => $instance_changed();
-                  unselect-all => $instance_changed();
+                 ListBox instance_listbox {
+                   selection-mode: single;
+                   row-selected => $instance_changed();
+                   unselect-all => $instance_changed();
 
-                  styles [
-                    "boxed-list",
-                  ]
-                }
+                   styles [
+                     "boxed-list",
+                   ]
+                 }
               }
             };
           }
