@@ -9,6 +9,7 @@ widgets = [
   'voice.py',
   'welcome.py',
   'preferences.py',
+  'setup.py',
 ]
 
 install_data(widgets, install_dir: moduledir)

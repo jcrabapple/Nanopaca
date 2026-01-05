@@ -1,0 +1,187 @@
+using Gtk 4.0;
+using Adw 1;
+
+template $AlpacaSetupDialog : Adw.NavigationView {
+  default-width: 450;
+  default-height: 500;
+  hexpand: true;
+  vexpand: true;
+
+  Adw.NavigationPage welcome_page {
+    title: _("Welcome to Alpaca");
+
+    Adw.Box {
+      orientation: vertical;
+      spacing: 24;
+      margin-start: 36;
+      margin-end: 36;
+      margin-top: 36;
+      margin-bottom: 36;
+      valign: center;
+
+      Gtk.Image {
+        icon-name: "com.jeffser.Alpaca";
+        pixel-size: 128;
+      }
+
+      Gtk.Label {
+        label: _("Alpaca");
+        styles ["title-1"]
+        halign: center;
+      }
+
+      Gtk.Label {
+        label: _("AI Chat Powered by NanoGPT");
+        styles ["title-2", "dim-label"]
+        halign: center;
+      }
+
+      Gtk.Label {
+        label: _("Get started by entering your NanoGPT API key. Don't have one? Sign up at nanogpt.com");
+        wrap: true;
+        wrap-mode: word;
+        justify: center;
+        halign: center;
+        max-width-chars: 350;
+        lines: 3;
+      }
+
+      Gtk.Button get_started_button {
+        label: _("Get Started");
+        hexpand: false;
+        halign: center;
+        margin-top: 24;
+        styles ["suggested-action", "pill"]
+        clicked => $on_get_started();
+      }
+    }
+  }
+
+  Adw.NavigationPage api_key_page {
+    title: _("API Key");
+
+    Adw.Box {
+      orientation: vertical;
+      spacing: 24;
+      margin-start: 24;
+      margin-end: 24;
+      margin-top: 24;
+      margin-bottom: 24;
+      vexpand: true;
+
+      Adw.Clamp {
+        maximum-width: 400;
+
+        Adw.Box {
+          orientation: vertical;
+          spacing: 12;
+
+          Gtk.Label {
+            label: _("Enter Your NanoGPT API Key");
+            styles ["title-2"]
+            halign: start;
+          }
+
+          Gtk.Label {
+            label: _("Your API key is stored securely and used only to make requests to NanoGPT"));
+            wrap: true;
+            wrap-mode: word;
+            styles ["dim-label"]
+          }
+
+          Adw.PasswordEntryRow api_key_entry {
+            title: _("API Key");
+            show-peek-icon: true;
+            activates: true;
+          }
+
+          Gtk.Button test_api_key_button {
+            label: _("Test Connection");
+            halign: end;
+            styles ["suggested-action"]
+            clicked => $on_test_api_key();
+          }
+
+          Gtk.Label api_key_status_label {
+            label: _("");
+            wrap: true;
+            wrap-mode: word;
+            halign: start;
+            styles ["dim-label"]
+          }
+
+          Gtk.Label {
+            label: _("Balance: --");
+            styles ["title-3"]
+            halign: center;
+            margin-top: 12;
+          }
+        }
+      }
+
+      Gtk.Button next_button {
+        label: _("Next: Select Model");
+        sensitive: false;
+        halign: end;
+        styles ["suggested-action"]
+        clicked => $on_next_to_model();
+      }
+    }
+  }
+
+  Adw.NavigationPage model_page {
+    title: _("Select Model");
+
+    Adw.Box {
+      orientation: vertical;
+      spacing: 24;
+      margin-start: 24;
+      margin-end: 24;
+      margin-top: 24;
+      margin-bottom: 24;
+      vexpand: true;
+
+      Adw.Clamp {
+        maximum-width: 400;
+
+        Adw.Box {
+          orientation: vertical;
+          spacing: 12;
+
+          Gtk.Label {
+            label: _("Choose Your Model");
+            styles ["title-2"]
+            halign: start;
+          }
+
+          Gtk.Label {
+            label: _("Select a default model for your chats. You can change this later in settings."));
+            wrap: true;
+            wrap-mode: word;
+            styles ["dim-label"]
+          }
+
+          Gtk.DropDown model_dropdown {
+            hexpand: true;
+            factory-type: list;
+          }
+
+          Gtk.Label model_description_label {
+            label: _("Select a model to see its description"));
+            wrap: true;
+            wrap-mode: word;
+            styles ["dim-label"]
+            margin-top: 12;
+          }
+        }
+      }
+
+      Gtk.Button finish_button {
+        label: _("Start Chatting");
+        halign: end;
+        styles ["suggested-action"]
+        clicked => $on_finish_setup();
+      }
+    }
+  }
+}

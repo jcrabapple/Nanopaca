@@ -10,15 +10,6 @@ template $AlpacaPreferencesDialog: Adw.PreferencesDialog {
     title: _("General");
 
     Adw.PreferencesGroup {
-      Adw.SwitchRow background_switch {
-        title: _("Run Alpaca In Background");
-      }
-
-      Adw.SwitchRow powersaver_warning_switch {
-        title: _("Show Power Saver Warning");
-        subtitle: _("When running a managed Ollama instance");
-      }
-
       Adw.SwitchRow show_model_manager_shortcut_switch {
         title: _("Show Model Manager Shortcut");
         subtitle: _("You can also find the model manager in the main dropdown menu");
@@ -66,6 +57,144 @@ template $AlpacaPreferencesDialog: Adw.PreferencesDialog {
         styles [
           "error",
         ]
+      }
+    }
+  }
+
+  Adw.PreferencesPage nanogpt_page {
+    icon-name: "cloud-symbolic";
+    title: _("NanoGPT");
+
+    Adw.PreferencesGroup {
+      title: _("API Configuration");
+
+      Adw.PasswordEntryRow nanogpt_api_key {
+        title: _("API Key");
+        show-peek-icon: true;
+      }
+
+      Adw.ActionRow {
+        title: _("Test Connection");
+        subtitle: _("Verify your API key and check balance");
+
+        Gtk.Button test_api_key_button {
+          label: _("Test");
+          styles ["suggested-action"]
+        }
+      }
+
+      Gtk.Label balance_label {
+        label: _("Balance: --");
+        halign: start;
+        margin-top: 6;
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Model Settings");
+
+      Adw.ComboRow default_model {
+        title: _("Default Model");
+        subtitle: _("Model used for new chats");
+        model: StringList {};
+      }
+
+      Adw.ComboRow title_model {
+        title: _("Title Generation Model");
+        subtitle: _("Model used to generate chat titles");
+        model: StringList {};
+      }
+
+      Adw.SwitchRow subscription_only {
+        title: _("Show Subscription Models Only");
+        subtitle: _("Filter model list to subscription-included models");
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Web Search");
+
+      Adw.SwitchRow web_search_enabled {
+        title: _("Enable Web Search");
+      }
+
+      Adw.ComboRow web_search_depth {
+        title: _("Search Depth");
+
+        model: StringList {
+          strings [
+            "Standard ($0.006 per search)",
+            "Deep ($0.06 per search)"
+          ]
+        };
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Generation Parameters");
+
+      Adw.ActionRow {
+        title: _("Temperature");
+        subtitle: _("Randomness: 0 (focused) to 2 (creative)");
+
+        Gtk.Scale temperature_slider {
+          orientation: horizontal;
+          digits: 1;
+          value-pos: right;
+          hexpand: true;
+
+          adjustment: Adjustment {
+            lower: 0;
+            upper: 2;
+            value: 0.7;
+            step-increment: 0.1;
+          };
+        }
+      }
+
+      Adw.SpinRow max_tokens {
+        title: _("Max Tokens");
+        subtitle: _("Maximum response length");
+
+        adjustment: Adjustment {
+          lower: 1;
+          upper: 32000;
+          value: 4096;
+          step-increment: 100;
+        };
+      }
+
+      Adw.ExpanderRow system_prompt_row {
+        title: _("System Prompt");
+        subtitle: _("Custom instructions for the AI");
+
+        Gtk.TextView system_prompt {
+          height-request: 100;
+          wrap-mode: word;
+          valign: expand;
+        }
+      }
+    }
+
+    Adw.PreferencesGroup {
+      title: _("Advanced Features");
+
+      Adw.SwitchRow auto_youtube_transcripts {
+        title: _("Auto YouTube Transcripts");
+        subtitle: _("Automatically fetch transcripts from YouTube links ($0.01 each)");
+        active: true;
+      }
+
+      Adw.SpinRow context_memory_days {
+        title: _("Context Memory Retention");
+        subtitle: _("Days to retain conversation history");
+
+        adjustment: Adjustment {
+          lower: 1;
+          upper: 365;
+          value: 30;
+          step-increment: 1;
+        };
       }
     }
   }
@@ -149,32 +278,6 @@ template $AlpacaPreferencesDialog: Adw.PreferencesDialog {
             _("Window"),
           ]
         };
-      }
-    }
-
-    Adw.PreferencesGroup activity_web_browser_group {
-      title: _("Web Browser");
-
-      Adw.ComboRow activity_web_browser_engine {
-        title: _("Search Engine");
-        notify::selected => $activity_web_browser_engine_changed();
-
-        model: StringList {
-          strings [
-            "Startpage",
-            "DuckDuckGo",
-            "Google",
-            _("Custom"),
-          ]
-        };
-      }
-
-      Adw.EntryRow activity_web_browser_query_url {
-        title: _("Search Query URL");
-      }
-
-      Adw.EntryRow activity_web_browser_homepage_url {
-        title: _("Homepage URL");
       }
     }
 

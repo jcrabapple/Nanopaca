@@ -129,6 +129,42 @@ template $AlpacaWindow: Adw.ApplicationWindow {
                 active: bind message_searchbar.search-mode-enabled;
               }
 
+              [start]
+              ToggleButton context_memory_toggle {
+                icon-name: "brain-symbolic";
+                tooltip-text: _("Context Memory (Unlimited conversation length)");
+                active: false;
+                styles ["suggested-action"]
+              }
+
+              [start]
+              MenuButton web_search_depth_button {
+                icon-name: "globe-symbolic";
+                tooltip-text: _("Web Search Depth");
+                sensitive: false;
+
+                Popover {
+                  Box {
+                    orientation: vertical;
+                    spacing: 6;
+                    margin-start: 12;
+                    margin-end: 12;
+                    margin-top: 12;
+                    margin-bottom: 12;
+
+                    RadioButton standard_search {
+                      label: _("Standard ($0.006)");
+                      group: deep_search;
+                      active: true;
+                    }
+
+                    RadioButton deep_search {
+                      label: _("Deep ($0.06)");
+                    }
+                  }
+                }
+              }
+
               [end]
               ToggleButton show_activities_toggle {
                 icon-name: "sidebar-show-right-symbolic";

@@ -11,6 +11,7 @@ from ...constants import MAX_TOKENS_TITLE_GENERATION, TITLE_GENERATION_PROMPT_OP
 
 logger = logging.getLogger(__name__)
 
+
 # Base instance, don't use directly
 class BaseInstance:
     instance_id = None
@@ -18,30 +19,30 @@ class BaseInstance:
     limitations = ()
 
     default_properties = {
-        'name': _('Instances'),
-        'api': '',
-        'max_tokens': 2048,
-        'override_parameters': True,
-        'temperature': 0.7,
-        'seed': 0,
-        'default_model': None,
-        'title_model': None
+        "name": _("Instances"),
+        "api": "",
+        "max_tokens": 2048,
+        "override_parameters": True,
+        "temperature": 0.7,
+        "seed": 0,
+        "default_model": None,
+        "title_model": None,
     }
 
-    def __init__(self, instance_id:str, properties:dict):
+    def __init__(self, instance_id: str, properties: dict):
         self.row = None
         self.instance_id = instance_id
         self.available_models = None
         self.properties = {}
         for key in self.default_properties:
             self.properties[key] = properties.get(key, self.default_properties.get(key))
-        if 'no-seed' in self.limitations and 'seed' in self.properties:
-            del self.properties['seed']
-        self.properties['url'] = self.instance_url
+        if "no-seed" in self.limitations and "seed" in self.properties:
+            del self.properties["seed"]
+        self.properties["url"] = self.instance_url
 
         self.client = openai.OpenAI(
-            base_url=self.properties.get('url').strip(),
-            api_key=self.properties.get('api')
+            base_url=self.properties.get("url").strip(),
+            api_key=self.properties.get("api"),
         )
 
     def stop(self):
@@ -61,93 +62,128 @@ class BaseInstance:
                 pass
 
             chat_element.busy = True
-            chat_element.set_visible_child_name('content')
+            chat_element.set_visible_child_name("content")
 
-        messages = chat_element.convert_to_ollama()[:list(chat_element.container).index(bot_message)]
+        messages = chat_element.convert_to_ollama()[
+            : list(chat_element.container).index(bot_message)
+        ]
         return chat_element, messages
 
-    def generate_message(self, bot_message, model:str):
+    def generate_message(self, bot_message, model: str):
         chat, messages = self.prepare_chat(bot_message)
 
-        if chat.chat_id and [m.get('role') for m in messages].count('assistant') == 0 and chat.get_name().startswith(_("New Chat")):
+        if (
+            chat.chat_id
+            and [m.get("role") for m in messages].count("assistant") == 0
+            and chat.get_name().startswith(_("New Chat"))
+        ):
             threading.Thread(
                 target=self.generate_chat_title,
                 args=(
                     chat,
-                    '\n'.join([c.get('text') for c in messages[-1].get('content') if c.get('type') == 'text']),
-                    model
+                    "\n".join(
+                        [
+                            c.get("text")
+                            for c in messages[-1].get("content")
+                            if c.get("type") == "text"
+                        ]
+                    ),
+                    model,
                 ),
-                daemon=True
+                daemon=True,
             ).start()
 
         self.generate_response(bot_message, chat, messages, model)
 
-    def use_tools(self, bot_message, model:str, available_tools:dict, generate_message:bool):
+    def use_tools(
+        self, bot_message, model: str, available_tools: dict, generate_message: bool
+    ):
         chat, messages = self.prepare_chat(bot_message)
 
-        if chat.chat_id and [m.get('role') for m in messages].count('assistant') == 0 and chat.get_name().startswith(_("New Chat")):
+        if (
+            chat.chat_id
+            and [m.get("role") for m in messages].count("assistant") == 0
+            and chat.get_name().startswith(_("New Chat"))
+        ):
             threading.Thread(
                 target=self.generate_chat_title,
                 args=(
                     chat,
-                    '\n'.join([c.get('text') for c in messages[-1].get('content') if c.get('type') == 'text']),
-                    model
+                    "\n".join(
+                        [
+                            c.get("text")
+                            for c in messages[-1].get("content")
+                            if c.get("type") == "text"
+                        ]
+                    ),
+                    model,
                 ),
-                daemon=True
+                daemon=True,
             ).start()
 
-        message_response = ''
+        message_response = ""
         try:
             completion = self.client.chat.completions.create(
                 model=model,
                 messages=messages,
-                tools=[v.get_metadata() for v in available_tools.values()]
+                tools=[v.get_metadata() for v in available_tools.values()],
             )
             if completion.choices[0] and completion.choices[0].message:
                 if completion.choices[0].message.tool_calls:
                     for call in completion.choices[0].message.tool_calls:
                         if available_tools.get(call.function.name):
-                            message_response, tool_response = available_tools.get(call.function.name).run(call.function.arguments, messages, bot_message)
-                            generate_message = generate_message and not bool(message_response)
+                            message_response, tool_response = available_tools.get(
+                                call.function.name
+                            ).run(call.function.arguments, messages, bot_message)
+                            generate_message = generate_message and not bool(
+                                message_response
+                            )
 
                             attachment_content = []
 
                             if len(json.loads(call.function.arguments)) > 0:
                                 attachment_content += [
-                                    '## {}'.format(_('Arguments')),
-                                    '| {} | {} |'.format(_('Argument'), _('Value')),
-                                    '| --- | --- |'
+                                    "## {}".format(_("Arguments")),
+                                    "| {} | {} |".format(_("Argument"), _("Value")),
+                                    "| --- | --- |",
                                 ]
-                                attachment_content += ['| {} | {} |'.format(k, v) for k, v in json.loads(call.function.arguments).items()]
+                                attachment_content += [
+                                    "| {} | {} |".format(k, v)
+                                    for k, v in json.loads(
+                                        call.function.arguments
+                                    ).items()
+                                ]
 
                             attachment_content += [
-                                '## {}'.format(_('Result')),
-                                tool_response
+                                "## {}".format(_("Result")),
+                                tool_response,
                             ]
 
                             attachment = bot_message.add_attachment(
-                                file_id = generate_uuid(),
-                                name = available_tools.get(call.function.name).name,
-                                attachment_type = 'tool',
-                                content = '\n'.join(attachment_content)
+                                file_id=generate_uuid(),
+                                name=available_tools.get(call.function.name).name,
+                                attachment_type="tool",
+                                content="\n".join(attachment_content),
                             )
                             SQL.insert_or_update_attachment(bot_message, attachment)
                         else:
-                            tool_response = ''
+                            tool_response = ""
 
                         arguments = json.loads(call.function.arguments)
-                        messages.append({
-                            "role": "tool",
-                            "tool_call_id": call.id,
-                            "content": str(tool_response)
-                        })
+                        messages.append(
+                            {
+                                "role": "tool",
+                                "tool_call_id": call.id,
+                                "content": str(tool_response),
+                            }
+                        )
 
         except Exception as e:
             dialog.simple_error(
-                parent = bot_message.get_root(),
-                title = _('Tool Error'),
-                body = _('An error occurred while running tool'),
-                error_log = e
+                parent=bot_message.get_root(),
+                title=_("Tool Error"),
+                body=_("An error occurred while running tool"),
+                error_log=e,
             )
             logger.error(e)
 
@@ -155,38 +191,38 @@ class BaseInstance:
             self.generate_response(bot_message, chat, messages, model)
         else:
             bot_message.block_container.set_content(str(message_response))
-            bot_message.finish_generation('')
+            bot_message.finish_generation("")
 
-    def generate_response(self, bot_message, chat, messages:list, model:str):
-        if 'no-system-messages' in self.limitations:
+    def generate_response(self, bot_message, chat, messages: list, model: str):
+        if "no-system-messages" in self.limitations:
             for i in range(len(messages)):
-                if messages[i].get('role') == 'system':
-                    messages[i]['role'] = 'user'
+                if messages[i].get("role") == "system":
+                    messages[i]["role"] = "user"
 
-        if 'text-only' in self.limitations:
+        if "text-only" in self.limitations:
             for i in range(len(messages)):
-                for c in range(len(messages[i].get('content', []))):
-                    if messages[i].get('content')[c].get('type') != 'text':
-                        del messages[i]['content'][c]
+                for c in range(len(messages[i].get("content", []))):
+                    if messages[i].get("content")[c].get("type") != "text":
+                        del messages[i]["content"][c]
                     else:
-                        messages[i]['content'] = messages[i].get('content')[c].get('text')
+                        messages[i]["content"] = (
+                            messages[i].get("content")[c].get("text")
+                        )
 
-        params = {
-            "model": model,
-            "messages": messages,
-            "stream": True
-        }
+        params = {"model": model, "messages": messages, "stream": True}
 
-        if self.properties.get('max_tokens', 0) > 0:
-            if 'use_max_completion_tokens' in self.limitations:
-                params["max_completion_tokens"] = int(self.properties.get('max_tokens', 0))
+        if self.properties.get("max_tokens", 0) > 0:
+            if "use_max_completion_tokens" in self.limitations:
+                params["max_completion_tokens"] = int(
+                    self.properties.get("max_tokens", 0)
+                )
             else:
-                params["max_tokens"] = int(self.properties.get('max_tokens', 0))
+                params["max_tokens"] = int(self.properties.get("max_tokens", 0))
 
         if self.properties.get("override_parameters"):
-            params["temperature"] = self.properties.get('temperature', 0.7)
-            if self.properties.get('seed', 0) != 0:
-                params["seed"] = self.properties.get('seed')
+            params["temperature"] = self.properties.get("temperature", 0.7)
+            if self.properties.get("seed", 0) != 0:
+                params["seed"] = self.properties.get("seed")
 
         if chat.busy:
             try:
@@ -201,85 +237,106 @@ class BaseInstance:
                         break
             except Exception as e:
                 dialog.simple_error(
-                    parent = bot_message.get_root(),
-                    title = _('Instance Error'),
-                    body = _('Message generation failed'),
-                    error_log = e
+                    parent=bot_message.get_root(),
+                    title=_("Instance Error"),
+                    body=_("Message generation failed"),
+                    error_log=e,
                 )
                 logger.error(e)
                 if self.row:
                     self.row.get_parent().unselect_all()
         bot_message.finish_generation()
 
-    def generate_chat_title(self, chat, prompt:str, fallback_model:str):
-        class ChatTitle(BaseModel): # Pydantic
+    def generate_chat_title(self, chat, prompt: str, fallback_model: str):
+        class ChatTitle(BaseModel):  # Pydantic
             title: str
             emoji: str = ""
 
         messages = [
-            {"role": "user" if 'no-system-messages' in self.limitations else "system", "content": TITLE_GENERATION_PROMPT_OPENAI},
-            {"role": "user", "content": "Generate a title for this prompt:\n{}".format(prompt)}
+            {
+                "role": "user"
+                if "no-system-messages" in self.limitations
+                else "system",
+                "content": TITLE_GENERATION_PROMPT_OPENAI,
+            },
+            {
+                "role": "user",
+                "content": "Generate a title for this prompt:\n{}".format(prompt),
+            },
         ]
         model = self.get_title_model()
         params = {
             "temperature": 0.2,
             "model": model if model else fallback_model,
             "messages": messages,
-            "max_tokens": MAX_TOKENS_TITLE_GENERATION
+            "max_tokens": MAX_TOKENS_TITLE_GENERATION,
         }
         new_chat_title = chat.get_name()
 
         try:
-            completion = self.client.chat.completions.parse(**params, response_format=ChatTitle)
+            completion = self.client.chat.completions.parse(
+                **params, response_format=ChatTitle
+            )
             response = completion.choices[0].message
             if response.parsed:
-                emoji = response.parsed.emoji if len(response.parsed.emoji) == 1 else ''
-                new_chat_title = '{} {}'.format(emoji, response.parsed.title)
+                emoji = response.parsed.emoji if len(response.parsed.emoji) == 1 else ""
+                new_chat_title = "{} {}".format(emoji, response.parsed.title)
         except Exception as e:
             try:
                 response = self.client.chat.completions.create(**params)
                 new_chat_title = str(response.choices[0].message.content)
             except Exception as e:
                 logger.error(e)
-        
-        new_chat_title = re.sub(r'<think>.*?</think>', '', new_chat_title).strip()
+
+        new_chat_title = re.sub(r"<think>.*?</think>", "", new_chat_title).strip()
 
         if len(new_chat_title) > 30:
-            new_chat_title = new_chat_title[:30].strip() + '...'
+            new_chat_title = new_chat_title[:30].strip() + "..."
 
-        chat.row.edit(
-            new_name=new_chat_title,
-            is_template=chat.is_template
-        )
+        chat.row.edit(new_name=new_chat_title, is_template=chat.is_template)
 
     def get_default_model(self):
         local_models = self.get_local_models()
         if len(local_models) > 0:
-            if not self.properties.get('default_model') or not self.properties.get('default_model') in [m.get('name') for m in local_models]:
-                self.properties['default_model'] = local_models[0].get('name')
-            return self.properties.get('default_model')
+            if not self.properties.get("default_model") or not self.properties.get(
+                "default_model"
+            ) in [m.get("name") for m in local_models]:
+                self.properties["default_model"] = local_models[0].get("name")
+            return self.properties.get("default_model")
 
     def get_title_model(self):
         local_models = self.get_local_models()
         if len(local_models) > 0:
-            if self.properties.get('title_model') and not self.properties.get('title_model') in [m.get('name') for m in local_models]:
-                self.properties['title_model'] = local_models[0].get('name')
-            return self.properties.get('title_model')
+            if self.properties.get("title_model") and not self.properties.get(
+                "title_model"
+            ) in [m.get("name") for m in local_models]:
+                self.properties["title_model"] = local_models[0].get("name")
+            return self.properties.get("title_model")
 
     def get_available_models(self) -> dict:
         try:
             if not self.available_models or len(self.available_models) == 0:
                 self.available_models = {}
                 for m in self.client.models.list():
-                    if all(s not in m.id.lower() for s in ['embedding', 'davinci', 'dall', 'tts', 'whisper', 'image']):
+                    if all(
+                        s not in m.id.lower()
+                        for s in [
+                            "embedding",
+                            "davinci",
+                            "dall",
+                            "tts",
+                            "whisper",
+                            "image",
+                        ]
+                    ):
                         self.available_models[m.id] = {}
             return self.available_models
         except Exception as e:
             dialog.simple_error(
-                parent = self.row.get_root() if self.row else None,
-                title = _('Instance Error'),
-                body = _('Could not retrieve added models'),
-                error_log = e
+                parent=self.row.get_root() if self.row else None,
+                title=_("Instance Error"),
+                body=_("Could not retrieve added models"),
+                error_log=e,
             )
             logger.error(e)
             if self.row:
@@ -293,324 +350,174 @@ class BaseInstance:
     def get_local_models(self) -> list:
         local_models = []
         for model in SQL.get_online_instance_model_list(self.instance_id):
-            local_models.append({'name': model})
+            local_models.append({"name": model})
         return local_models
 
-    def delete_model(self, model_name:str) -> bool:
+    def delete_model(self, model_name: str) -> bool:
         SQL.remove_online_instance_model_list(self.instance_id, model_name)
         return True
 
-    def get_model_info(self, model_name:str) -> dict:
+    def get_model_info(self, model_name: str) -> dict:
         return {}
 
-class ChatGPT(BaseInstance):
-    instance_type = 'chatgpt'
-    instance_type_display = 'OpenAI ChatGPT'
-    instance_url = 'https://api.openai.com/v1/'
-    limitations = ('use_max_completion_tokens',)
 
-class Gemini(BaseInstance):
-    instance_type = 'gemini'
-    instance_type_display = 'Google Gemini'
-    instance_url = 'https://generativelanguage.googleapis.com/v1beta/openai/'
-    limitations = ('no-system-messages',)
+class NanoGPT(BaseInstance):
+    instance_type = "nanogpt"
+    instance_type_display = "NanoGPT"
+    instance_url = "https://nano-gpt.com/api/v1"
 
-    def __init__(self, instance_id:str, properties:dict):
-        super().__init__(instance_id, properties)
-        if 'seed' in self.properties:
-            del self.properties['seed']
+    default_properties = {
+        "name": "NanoGPT",
+        "api": "",
+        "max_tokens": 4096,
+        "override_parameters": True,
+        "temperature": 0.7,
+        "seed": 0,
+        "default_model": None,
+        "title_model": None,
+        "web_search_enabled": False,
+        "web_search_depth": "standard",
+        "auto_youtube_transcripts": True,
+        "context_memory_enabled": False,
+        "context_memory_days": 30,
+        "system_prompt": "",
+    }
 
     def get_available_models(self) -> dict:
         try:
             if not self.available_models or len(self.available_models) == 0:
                 self.available_models = {}
-                response = requests.get('https://generativelanguage.googleapis.com/v1beta/models?key={}'.format(self.properties.get('api')))
-                for model in response.json().get('models', []):
-                    if "generateContent" in model.get("supportedGenerationMethods", []) and 'deprecated' not in model.get('description', ''):
-                        model['name'] = model.get('name').removeprefix('models/')
-                        self.available_models[model.get('name')] = model
+                response = requests.get(
+                    f"{self.instance_url}/models",
+                    params={"detailed": "true"},
+                    headers={"Authorization": f"Bearer {self.properties.get('api')}"},
+                )
+                data = response.json()
+
+                for model in data.get("data", []):
+                    model_data = {
+                        "name": model.get("name", model["id"]),
+                        "description": model.get("description", ""),
+                        "context_length": model.get("context_length"),
+                        "pricing": model.get("pricing", {}),
+                        "capabilities": model.get("capabilities", {}),
+                    }
+
+                    # Mark image-capable models
+                    model_id_lower = model["id"].lower()
+                    if (
+                        "vision" in model_id_lower
+                        or "gpt-4o" in model_id_lower
+                        or "claude-3" in model_id_lower
+                        or "gemini" in model_id_lower
+                    ):
+                        model_data["capabilities"]["vision"] = True
+
+                    self.available_models[model["id"]] = model_data
+
             return self.available_models
         except Exception as e:
-            dialog.simple_error(
-                parent = self.row.get_root() if self.row else None,
-                title = _('Instance Error'),
-                body = _('Could not retrieve added models'),
-                error_log = e
-            )
-            logger.error(e)
-            if self.row:
-                self.row.get_parent().unselect_all()
-        return {}
+            logger.error(f"Failed to fetch NanoGPT models: {e}")
+            return {}
 
-    def get_model_info(self, model_name:str) -> dict:
+    def get_subscription_models(self) -> dict:
         try:
-            response = requests.get('https://generativelanguage.googleapis.com/v1beta/models/{}?key={}'.format(model_name, self.properties.get('api')))
+            response = requests.get(
+                "https://nano-gpt.com/api/subscription/v1/models",
+                params={"detailed": "true"},
+                headers={"Authorization": f"Bearer {self.properties.get('api')}"},
+            )
             data = response.json()
-            data['capabilities'] = ['completion', 'vision']
-            return data
+
+            subscription_models = {}
+            for model in data.get("data", []):
+                subscription_models[model["id"]] = {
+                    "name": model.get("name", model["id"]),
+                    "description": model.get("description", ""),
+                    "subscription_included": True,
+                }
+            return subscription_models
         except Exception as e:
-            logger.error(e)
-        return {}
-
-class Together(BaseInstance):
-    instance_type = 'together'
-    instance_type_display = 'Together AI'
-    instance_url = 'https://api.together.xyz/v1/'
-
-    def get_available_models(self) -> dict:
-        try:
-            if not self.available_models or len(self.available_models) == 0:
-                self.available_models = {}
-                response = requests.get(
-                    'https://api.together.xyz/v1/models',
-                    headers={
-                        'accept': 'application/json',
-                        'authorization': 'Bearer {}'.format(self.properties.get('api'))
-                    }
-                )
-                for model in response.json():
-                    if model.get('id') and model.get('type') == 'chat':
-                        self.available_models[model.get('id')] = {'display_name': model.get('display_name')}
-            return self.available_models
-
-
-            return models
-        except Exception as e:
-            dialog.simple_error(
-                parent = self.row.get_root() if self.row else None,
-                title = _('Instance Error'),
-                body = _('Could not retrieve added models'),
-                error_log = e
-            )
-            logger.error(e)
-            if self.row:
-                self.row.get_parent().unselect_all()
-        return {}
-
-class Venice(BaseInstance):
-    instance_type = 'venice'
-    instance_type_display = 'Venice'
-    instance_url = 'https://api.venice.ai/api/v1/'
-    limitations = ('no-system-messages',)
-
-    def __init__(self, instance_id:str, properties:dict):
-        super().__init__(instance_id, properties)
-        if 'seed' in self.properties:
-            del self.properties['seed']
-
-class Deepseek(BaseInstance):
-    instance_type = 'deepseek'
-    instance_type_display = 'Deepseek'
-    instance_url = 'https://api.deepseek.com/v1/'
-    limitations = ('text-only',)
-
-    def __init__(self, instance_id:str, properties:dict):
-        super().__init__(instance_id, properties)
-        if 'seed' in self.properties:
-            del self.properties['seed']
-
-class Groq(BaseInstance):
-    instance_type = 'groq'
-    instance_type_display = 'Groq Cloud'
-    instance_url = 'https://api.groq.com/openai/v1'
-    limitations = ('text-only',)
-
-class Anthropic(BaseInstance):
-    instance_type = 'anthropic'
-    instance_type_display = 'Anthropic'
-    instance_url = 'https://api.anthropic.com/v1/'
-    limitations = ('no-system-messages',)
-
-class OpenRouter(BaseInstance):
-    instance_type = 'openrouter'
-    instance_type_display = 'OpenRouter AI'
-    instance_url = 'https://openrouter.ai/api/v1/'
-
-    def get_available_models(self) -> dict:
-        try:
-            if not self.available_models or len(self.available_models) == 0:
-                self.available_models = {}
-                response = requests.get('https://openrouter.ai/api/v1/models')
-                for model in response.json().get('data', []):
-                    if model.get('id'):
-                        self.available_models[model.get('id')] = {'display_name': model.get('name')}
-
-            return self.available_models
-        except Exception as e:
-            dialog.simple_error(
-                parent = self.row.get_root() if self.row else None,
-                title = _('Instance Error'),
-                body = _('Could not retrieve models'),
-                error_log = e
-            )
-            logger.error(e)
-            if self.row:
-                self.row.get_parent().unselect_all()
+            logger.error(f"Failed to fetch subscription models: {e}")
             return {}
 
-class Qwen(BaseInstance):
-    instance_type = 'qwen'
-    instance_type_display = 'Qwen (DashScope)'
-    instance_url = 'https://dashscope-intl.aliyuncs.com/compatible-mode/v1'
-    description = _('Alibaba Cloud Qwen large language models via DashScope')
-    
-class Fireworks(BaseInstance):
-    instance_type = 'fireworks'
-    instance_type_display = 'Fireworks AI'
-    instance_url = 'https://api.fireworks.ai/inference/v1/'
-    description = _('Fireworks AI inference platform')
+    def web_search(self, query: str) -> str:
+        depth = self.properties.get("web_search_depth", "standard")
 
-    def get_available_models(self) -> dict:
         try:
-            if not self.available_models or len(self.available_models) == 0:
-                self.available_models = {}
-                response = requests.get(
-                    'https://api.fireworks.ai/inference/v1/models',
-                    headers={
-                        'Authorization': f'Bearer {self.properties.get("api")}'
-                    }
-                )
-                for model in response.json().get('data', []):
-                    if model.get('id') and 'chat' in model.get('capabilities', []):
-                        self.available_models[model.get('id')] = {'display_name': model.get('name')}
-
-            return self.available_models
-        except Exception as e:
-            dialog.simple_error(
-                parent = self.row.get_root() if self.row else None,
-                title = _('Instance Error'),
-                body = _('Could not retrieve models'),
-                error_log = e
+            response = requests.post(
+                "https://nano-gpt.com/api/web",
+                headers={
+                    "Content-Type": "application/json",
+                    "x-api-key": self.properties.get("api"),
+                },
+                json={"query": query, "depth": depth, "outputType": "sourcedAnswer"},
             )
-            logger.error(e)
-            if self.row:
-                self.row.get_parent().unselect_all()
-            return {}
+            result = response.json()
 
-class LambdaLabs(BaseInstance):
-    instance_type = 'lambda_labs'
-    instance_type_display = 'Lambda Labs'
-    instance_url = 'https://api.lambdalabs.com/v1/'
-    description = _('Lambda Labs cloud inference API')
+            if "data" in result and "answer" in result["data"]:
+                answer = result["data"]["answer"]
+                sources = result["data"].get("sources", [])
 
-    def get_available_models(self) -> dict:
+                formatted = f"{answer}\n\n**Sources:**\n"
+                for source in sources:
+                    formatted += f"- [{source['name']}]({source['url']})\n"
+
+                cost = result.get("metadata", {}).get("cost", 0)
+                formatted += f"\n*Search cost: ${cost:.4f}*"
+
+                return formatted
+            return "No results found"
+        except Exception as e:
+            logger.error(f"Web search failed: {e}")
+            return f"Error: {str(e)}"
+
+    def check_balance(self) -> dict:
         try:
-            if not self.available_models or len(self.available_models) == 0:
-                self.available_models = {}
-                response = requests.get(
-                    'https://api.lambdalabs.com/v1/models',
-                    headers={
-                        'Authorization': f'Bearer {self.properties.get("api")}'
-                    }
-                )
-                for model in response.json().get('data', []):
-                    if model.get('id'):
-                        self.available_models[model.get('id')] = {'display_name': model.get('name')}
-
-            return self.available_models
-        except Exception as e:
-            dialog.simple_error(
-                parent = self.row.get_root() if self.row else None,
-                title = _('Instance Error'),
-                body = _('Could not retrieve models'),
-                error_log = e
+            response = requests.post(
+                f"{self.instance_url}/check-balance",
+                headers={"x-api-key": self.properties.get("api")},
             )
-            logger.error(e)
-            if self.row:
-                self.row.get_parent().unselect_all()
-            return {}
+            return response.json()
+        except:
+            return {"balance": 0, "error": "Failed to fetch balance"}
 
-class Cerebras(BaseInstance):
-    instance_type = 'cerebras'
-    instance_type_display = 'Cerebras AI'
-    instance_url = 'https://api.cerebras.ai/v1/'
-    description = _('Cerebras AI cloud inference API')
+    def generate_response(self, bot_message, chat, messages: list, model: str):
+        params = {"model": model, "messages": messages, "stream": True}
 
-class Klusterai(BaseInstance):
-    instance_type = 'klusterai'
-    instance_type_display = 'Kluster AI'
-    instance_url = 'https://api.kluster.ai/v1/'
-    description = _('Kluster AI cloud inference API')
+        # Auto YouTube transcripts
+        if self.properties.get("auto_youtube_transcripts", True):
+            params["youtube_transcripts"] = True
 
-class Kimi(BaseInstance):
-    instance_type = 'kimi'
-    instance_type_display = 'Kimi (Moonshot AI)'
-    instance_url = 'https://api.moonshot.ai/v1/'
-    description = _('Kimi large language models by Moonshot AI')
-    limitations = ('no-seed',)
+        # Context memory
+        if self.properties.get("context_memory_enabled", False):
+            memory_days = self.properties.get("context_memory_days", 30)
+            params["model"] = f"{model}:memory-{memory_days}"
 
-class Mistral(BaseInstance):
-    instance_type = 'mistral'
-    instance_type_display = 'Mistral AI'
-    instance_url = 'https://api.mistral.ai/v1/'
-    description = _('Mistral AI large language models')
-    limitations = ('text-only',)
+        # System prompt
+        if self.properties.get("system_prompt"):
+            messages.insert(
+                0, {"role": "system", "content": self.properties.get("system_prompt")}
+            )
 
-class LlamaAPI(BaseInstance):
-    instance_type = 'llama-api'
-    instance_type_display = 'Llama API'
-    instance_url = 'https://api.llama.com/compat/v1/'
-    description = _('Meta AI Llama API')
+        super().generate_response(bot_message, chat, messages, model)
 
-class NovitaAI(BaseInstance):
-    instance_type = 'novitaai'
-    instance_type_display = 'Novita AI'
-    instance_url = 'https://api.novita.ai/v3/openai/'
-    description = _('Novita AI cloud inference API')
-    limitations = ('no-seed',)
-
-class DeepInfra(BaseInstance):
-    instance_type = 'deepinfra'
-    instance_type_display = 'DeepInfra'
-    instance_url = 'https://api.deepinfra.com/v1/openai'
-    description = _('DeepInfra cloud inference API')
-
-class CompactifAI(BaseInstance):
-    instance_type = 'compactifai'
-    instance_type_display = 'CompactifAI'
-    instance_url = 'https://your-compactifai-api-endpoint/v1'
-    description = _('CompactifAI inference platform')
-
-    def get_available_models(self) -> dict:
+    def generate_image(
+        self,
+        prompt: str,
+        model: str = "dall-e-3",
+        size: str = "1024x1024",
+        quality: str = "standard",
+    ) -> dict:
         try:
-            if not self.available_models or len(self.available_models) == 0:
-                self.available_models = {}
-                response = requests.get(
-                    f'{self.instance_url}/models',
-                    headers={
-                        'Authorization': f'Bearer {self.properties.get("api")}'
-                    }
-                )
-                for model in response.json().get('data', []):
-                    if model.get('id'):
-                        self.available_models[model.get('id')] = {
-                            'display_name': model.get('name', model.get('id'))
-                        }
-            return self.available_models
-        except Exception as e:
-            dialog.simple_error(
-                parent=self.row.get_root() if self.row else None,
-                title=_('Instance Error'),
-                body=_('Could not retrieve CompactifAI models'),
-                error_log=e
+            response = self.client.images.generate(
+                model=model, prompt=prompt, size=size, quality=quality, n=1
             )
-            logger.error(e)
-            if self.row:
-                self.row.get_parent().unselect_all()
-            return {}
-
-class Grok(BaseInstance):
-    instance_type = 'grok'
-    instance_type_display = 'Grok'
-    instance_url = 'https://api.x.ai/v1'
-    description = _('Grok instance from X.ai')
-
-class GenericOpenAI(BaseInstance):
-    instance_type = 'openai:generic'
-    instance_type_display = _('OpenAI Compatible Instance')
-    instance_url = ''
-    description = _('AI instance compatible with OpenAI library')
-
-    def __init__(self, instance_id:str, properties:dict):
-        self.instance_url = properties.get('url', '')
-        super().__init__(instance_id, properties)
+            return {
+                "success": True,
+                "url": response.data[0].url,
+                "revised_prompt": getattr(response.data[0], "revised_prompt", prompt),
+            }
+        except Exception as e:
+            logger.error(f"Image generation failed: {e}")
+            return {"success": False, "error": str(e)}

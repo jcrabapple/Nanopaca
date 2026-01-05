@@ -5,23 +5,24 @@
 	<project_license>GPL-3.0-or-later</project_license>
   <launchable type="desktop-id">com.jeffser.Alpaca.desktop</launchable>
   <name>Alpaca</name>
-  <summary>Chat with AI models</summary>
+  <summary>Chat with AI models using NanoGPT</summary>
 	<description>
-    <p>A private AI client</p>
+    <p>A GNOME desktop AI chat client powered by NanoGPT</p>
     <p>Features</p>
 	  <ul>
-	    <li>Talk to multiple models in the same conversation</li>
-	    <li>Pull and delete models from the app</li>
-	    <li>Have multiple conversations</li>
-	    <li>Image recognition (Only available with compatible models)</li>
-	    <li>Plain text documents recognition</li>
+	    <li>Chat with advanced AI models via NanoGPT API</li>
+	    <li>Web search with standard and deep search options</li>
+	    <li>Automatic YouTube transcript extraction</li>
+	    <li>Image generation from text descriptions</li>
+	    <li>Context memory for unlimited conversation length</li>
+	    <li>Vision/image recognition capabilities</li>
+	    <li>Code highlighting</li>
+	    <li>Multiple conversations</li>
 	    <li>Import and export chats</li>
-	    <li>Append YouTube transcripts to the prompt</li>
-	    <li>Append text from a website to the prompt</li>
-	    <li>PDF recognition</li>
+	    <li>Delete, edit, and regenerate messages</li>
 	  </ul>
-    <p>Disclaimer</p>
-	  <p>This project is not affiliated at all with Ollama, I'm not responsible for any damages to your device or software caused by running code given by any models.</p>
+    <p>Getting Started</p>
+	  <p>Sign up at nano-gpt.com to get your API key, then start chatting with AI!</p>
 	</description>
   <developer id="com.jeffser">
     <name>Jeffry Samuel Eduarte Rojas</name>

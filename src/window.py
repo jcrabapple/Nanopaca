@@ -28,23 +28,29 @@ from datetime import datetime
 
 from gi.repository import Adw, Gtk, Gdk, GLib, GtkSource, Gio, Spelling
 
-from .sql_manager import generate_uuid, generate_numbered_name, prettify_model_name, Instance as SQL
+from .sql_manager import (
+    generate_uuid,
+    generate_numbered_name,
+    prettify_model_name,
+    Instance as SQL,
+)
 from . import widgets as Widgets
 from .constants import data_dir, source_dir, cache_dir
 
 logger = logging.getLogger(__name__)
 
-@Gtk.Template(resource_path='/com/jeffser/Alpaca/window.ui')
+
+@Gtk.Template(resource_path="/com/jeffser/Alpaca/window.ui")
 class AlpacaWindow(Adw.ApplicationWindow):
-    __gtype_name__ = 'AlpacaWindow'
+    __gtype_name__ = "AlpacaWindow"
 
-    localedir = os.path.join(source_dir, 'locale')
+    localedir = os.path.join(source_dir, "locale")
 
-    gettext.bindtextdomain('com.jeffser.Alpaca', localedir)
-    gettext.textdomain('com.jeffser.Alpaca')
+    gettext.bindtextdomain("com.jeffser.Alpaca", localedir)
+    gettext.textdomain("com.jeffser.Alpaca")
     _ = gettext.gettext
 
-    #Elements
+    # Elements
     new_chat_splitbutton = Gtk.Template.Child()
     model_manager = Gtk.Template.Child()
     instance_manager_stack = Gtk.Template.Child()
@@ -72,13 +78,21 @@ class AlpacaWindow(Adw.ApplicationWindow):
 
     chat_searchbar = Gtk.Template.Child()
 
+    # NanoGPT features
+    context_memory_toggle = Gtk.Template.Child()
+    web_search_depth_button = Gtk.Template.Child()
+    web_search_standard = Gtk.Template.Child()
+    web_search_deep = Gtk.Template.Child()
+
     @Gtk.Template.Callback()
     def chat_list_page_changed(self, navigationview, page=None):
         if self.chat_searchbar.get_search_mode():
             self.chat_searchbar.set_search_mode(False)
-            previous_page = navigationview.get_previous_page(navigationview.get_visible_page())
+            previous_page = navigationview.get_previous_page(
+                navigationview.get_visible_page()
+            )
             if previous_page:
-                previous_page.on_search('')
+                previous_page.on_search("")
 
     @Gtk.Template.Callback()
     def first_breakpoint_applied(self, bp):
@@ -88,235 +102,96 @@ class AlpacaWindow(Adw.ApplicationWindow):
     @Gtk.Template.Callback()
     def add_instance(self, button):
         def selected(ins):
-            if ins.instance_type == 'ollama:managed' and not shutil.which('ollama'):
+            if ins.instance_type == "ollama:managed" and not shutil.which("ollama"):
                 Widgets.dialog.simple(
-                    parent = button.get_root(),
-                    heading = _("Ollama Was Not Found"),
-                    body = _("To add a managed Ollama instance, you must have Ollama installed locally in your device, this is a simple process and should not take more than 5 minutes."),
-                    callback = lambda: Gio.AppInfo.launch_default_for_uri('https://jeffser.com/alpaca/installation-guide.html'),
-                    button_name = _("Open Tutorial in Web Browser")
+                    parent=button.get_root(),
+                    heading=_("Ollama Was Not Found"),
+                    body=_(
+                        "To add a managed Ollama instance, you must have Ollama installed locally in your device, this is a simple process and should not take more than 5 minutes."
+                    ),
+                    callback=lambda: Gio.AppInfo.launch_default_for_uri(
+                        "https://jeffser.com/alpaca/installation-guide.html"
+                    ),
+                    button_name=_("Open Tutorial in Web Browser"),
                 )
             else:
-                instance = ins(
-                    instance_id=None,
-                    properties={}
-                )
-                Widgets.instances.InstancePreferencesDialog(instance).present(self)
+                instance = ins(instance_id=None, properties={})
+                    Widgets.instances.InstancePreferencesDialog(instance).present(self)
 
         options = {}
-        instance_list = Widgets.instances.ollama_instances.BaseInstance.__subclasses__()
-        if os.getenv('ALPACA_OLLAMA_ONLY', '0') != '1' and importlib.util.find_spec('openai'):
-            instance_list += Widgets.instances.openai_instances.BaseInstance.__subclasses__()
-        for ins_type in instance_list:
-            options[ins_type.instance_type_display] = ins_type
-
-        Widgets.dialog.simple_dropdown(
-            parent = button.get_root(),
-            heading = _("Add Instance"),
-            body = _("Select a type of instance to add"),
-            callback = lambda option, options=options: selected(options[option]),
-            items = options.keys()
-        )
-
-    @Gtk.Template.Callback()
-    def instance_changed(self, listbox, row):
-        def change_instance():
-            if self.last_selected_instance_row:
-                self.last_selected_instance_row.instance.stop()
-
-            self.last_selected_instance_row = row
-
-            self.model_manager.update_added_model_list()
-            self.model_manager.update_available_model_list()
-
-            if row:
-                self.settings.set_string('selected-instance', row.instance.instance_id)
-                self.get_application().lookup_action('model_creator_existing').set_enabled(row.instance.instance_type in ('ollama', 'ollama:managed'))
-                self.get_application().lookup_action('model_creator_gguf').set_enabled(row.instance.instance_type in ('ollama', 'ollama:managed'))
-
-            listbox.set_sensitive(True)
-        if listbox.get_sensitive():
-            listbox.set_sensitive(False)
-            GLib.idle_add(threading.Thread(target=change_instance, daemon=True).start)
-
-    @Gtk.Template.Callback()
-    def closing_app(self, user_data):
-        def close():
-            try:
-                self.settings.set_string('default-chat', self.chat_bin.get_child().chat_id)
-            except Exception as e:
-                logger.warning(f"Could not save default chat: {e}")
-            
-            try:
-                current_instance = self.get_current_instance()
-                if hasattr(current_instance, 'stop'):
-                    current_instance.stop()
-            except Exception as e:
-                logger.warning(f"Error stopping current instance: {e}")
-            
-            try:
-                if Widgets.voice.message_dictated:
-                    Widgets.voice.message_dictated.popup.tts_button.set_active(False)
-            except Exception as e:
-                logger.warning(f"Error stopping voice: {e}")
-            
-            # Quit from the GLib main loop to avoid teardown races with worker threads
-            GLib.idle_add(self.get_application().quit)
-
-        def switch_to_hide():
-            self.set_hide_on_close(True)
-            self.close() #Recalls this function
-
-        if self.get_hide_on_close():
-            logger.info("Hiding app...")
-        else:
-            logger.info("Closing app...")
-            is_chat_busy = any([chat_row.chat.busy for chat_row in list(self.get_chat_list_page().chat_list_box)])
-            is_model_downloading = any([el for el in list(self.model_manager.added_model_flowbox) if el.get_child().progressbar.get_visible()])
-            if is_chat_busy or is_model_downloading:
-                options = {
-                    _('Cancel'): {'default': True},
-                    _('Hide'): {'callback': switch_to_hide},
-                    _('Close'): {'callback': close, 'appearance': 'destructive'},
-                }
-                Widgets.dialog.Options(
-                    heading = _('Close Alpaca?'),
-                    body = _('A task is currently in progress. Are you sure you want to close Alpaca?'),
-                    close_response = list(options.keys())[0],
-                    options = options,
-                ).show(self)
-                return True
-            else:
-                close()
-
-    @Gtk.Template.Callback()
-    def chat_search_changed(self, entry):
-        self.get_chat_list_page().on_search(entry.get_text())
-
-    @Gtk.Template.Callback()
-    def message_search_changed(self, entry, current_chat=None):
-        self.chat_bin.get_child().on_search(entry.get_text())
-
-    def send_message(self, mode:int=0, available_tools:dict={}): #mode 0=user 1=system
-        buffer = self.global_footer.get_buffer()
-
-        raw_message = buffer.get_text(buffer.get_start_iter(), buffer.get_end_iter(), False)
-        if not raw_message.strip():
-            return
-
-        current_chat = self.chat_bin.get_child()
-        if current_chat.busy == True:
-            return
-
-        if self.get_current_instance().instance_type == 'empty':
-            self.get_application().lookup_action('instance_manager').activate()
-            return
-
-        current_model = self.get_selected_model().get_name()
-        if current_model is None:
-            Widgets.dialog.show_toast(_("Please select a model before chatting"), current_chat.get_root())
-            return
-
-        # Bring tab to top
-        row = current_chat.row
-        chat_list = row.get_parent()
-        GLib.idle_add(chat_list.unselect_all)
-        GLib.idle_add(chat_list.remove, row)
-        GLib.idle_add(chat_list.prepend, row)
-        GLib.idle_add(chat_list.select_row, row)
-
-        m_element = Widgets.message.Message(
-            dt=datetime.now(),
-            message_id=generate_uuid(),
-            mode=mode*2
-        )
-        current_chat.add_message(m_element)
-
-        for old_attachment in list(self.global_footer.attachment_container.container):
-            attachment = m_element.add_attachment(
-                file_id = generate_uuid(),
-                name = old_attachment.file_name,
-                attachment_type = old_attachment.file_type,
-                content = old_attachment.file_content
-            )
-            old_attachment.delete()
-            SQL.insert_or_update_attachment(m_element, attachment)
-
-        m_element.block_container.set_content(raw_message)
-
-        SQL.insert_or_update_message(m_element)
-
-        buffer.set_text("", 0)
-
-        if mode==0:
-            m_element_bot = Widgets.message.Message(
-                dt=datetime.now(),
-                message_id=generate_uuid(),
-                mode=1,
-                author=current_model
-            )
-            current_chat.add_message(m_element_bot)
-            SQL.insert_or_update_message(m_element_bot)
-            if len(available_tools) > 0:
-                threading.Thread(target=self.get_current_instance().use_tools, args=(m_element_bot, current_model, available_tools, True), daemon=True).start()
-            else:
-                threading.Thread(target=self.get_current_instance().generate_message, args=(m_element_bot, current_model), daemon=True).start()
-        elif mode==1:
-            current_chat.set_visible_child_name('content')
-
-    def get_selected_model(self):
-        selected_item = self.global_footer.model_selector.get_selected_item()
-        if selected_item:
-            return selected_item.model
-        else:
-            return Widgets.models.added.FallbackModel
-
-    def get_current_instance(self):
-        if self.instance_listbox.get_selected_row():
-            return self.instance_listbox.get_selected_row().instance
-        else:
-            return Widgets.instances.Empty()
-
-    def prepare_alpaca(self):
-        self.main_navigation_view.replace_with_tags(['chat'])
-
-        #Chat History
-        root_folder = Widgets.chat.Folder(show_bar=False)
-        self.chat_list_navigationview.add(root_folder)
-        root_folder.update()
-
-        if self.get_application().args.new_chat:
-            self.get_chat_list_page().new_chat(self.get_application().args.new_chat)
-
-        # Ollama is available but there are no instances added
-        if not any(i.get("type") == "ollama:managed" for i in SQL.get_instances()) and shutil.which("ollama"):
-            SQL.insert_or_update_instance(
-                instance_id=generate_uuid(),
-                pinned=True,
-                instance_type='ollama:managed',
-                properties={
-                    'name': 'Alpaca',
-                    'url': 'http://127.0.0.1:11435',
-                }
-            )
-
         Widgets.instances.update_instance_list(
             instance_listbox=self.instance_listbox,
-            selected_instance_id=self.settings.get_value('selected-instance').unpack()
+            selected_instance_id=self.settings.get_value("selected-instance").unpack(),
         )
+
+    @Gtk.Template.Callback()
+    def on_context_memory_toggled(self, toggle):
+        """Toggle context memory for the current chat"""
+        if toggle.get_active():
+            toggle.add_css_class("suggested-action")
+        else:
+            toggle.remove_css_class("suggested-action")
+        
+        # Update instance property
+        instance = self.get_active_instance()
+        if instance and instance.instance_type == "nanogpt":
+            instance.properties["context_memory_enabled"] = toggle.get_active()
+
+    @Gtk.Template.Callback()
+    def on_web_search_standard_toggled(self, radio):
+        """Set web search to standard depth"""
+        if radio.get_active():
+            instance = self.get_active_instance()
+            if instance and instance.instance_type == "nanogpt":
+                instance.properties["web_search_depth"] = "standard"
+                self.web_search_depth_button.set_tooltip_text(_("Standard Search ($0.006)"))
+
+    @Gtk.Template.Callback()
+    def on_web_search_deep_toggled(self, radio):
+        """Set web search to deep depth"""
+        if radio.get_active():
+            instance = self.get_active_instance()
+            if instance and instance.instance_type == "nanogpt":
+                instance.properties["web_search_depth"] = "deep"
+                self.web_search_depth_button.set_tooltip_text(_("Deep Search ($0.06)"))
+
+    def on_setup_complete(self):
+        """Called when setup wizard completes"""
+        # Reload main interface
+        pass  # Setup already pushed the main view
+
+    def get_active_instance(self):
+        """Get the currently active instance"""
+        instance_list = list(self.instance_listbox)
+        if instance_list:
+            selected = self.instance_listbox.get_selected_row()
+            if selected:
+                return selected.instance
+        return None
 
     def on_chat_imported(self, file):
         if file:
-            if os.path.isfile(os.path.join(cache_dir, 'import.db')):
-                os.remove(os.path.join(cache_dir, 'import.db'))
-            file.copy(Gio.File.new_for_path(os.path.join(cache_dir, 'import.db')), Gio.FileCopyFlags.OVERWRITE, None, None, None, None)
-            chat_names = [tab.chat.get_name() for tab in list(self.get_chat_list_page().chat_list_box)]
-            for chat in SQL.import_chat(os.path.join(cache_dir, 'import.db'), chat_names, self.get_chat_list_page().folder_id):
+            if os.path.isfile(os.path.join(cache_dir, "import.db")):
+                os.remove(os.path.join(cache_dir, "import.db"))
+            file.copy(
+                Gio.File.new_for_path(os.path.join(cache_dir, "import.db")),
+                Gio.FileCopyFlags.OVERWRITE,
+                None,
+                None,
+                None,
+                None,
+            )
+            chat_names = [
+                tab.chat.get_name()
+                for tab in list(self.get_chat_list_page().chat_list_box)
+            ]
+            for chat in SQL.import_chat(
+                os.path.join(cache_dir, "import.db"),
+                chat_names,
+                self.get_chat_list_page().folder_id,
+            ):
                 self.get_chat_list_page().add_chat(
-                    chat_name=chat[1],
-                    chat_id=chat[0],
-                    is_template=False,
-                    mode=1
+                    chat_name=chat[1], chat_id=chat[0], is_template=False, mode=1
                 )
             Widgets.dialog.show_toast(_("Chat imported successfully"), self)
 
@@ -324,53 +199,62 @@ class AlpacaWindow(Adw.ApplicationWindow):
         current_tag = self.main_navigation_view.get_visible_page_tag()
 
         searchbars = {
-            'chat': self.message_searchbar,
-            'model_manager': self.model_manager.searchbar
+            "chat": self.message_searchbar,
+            "model_manager": self.model_manager.searchbar,
         }
 
         if searchbars.get(current_tag):
-            searchbars.get(current_tag).set_search_mode(not searchbars.get(current_tag).get_search_mode())
+            searchbars.get(current_tag).set_search_mode(
+                not searchbars.get(current_tag).get_search_mode()
+            )
 
     def get_chat_list_page(self):
         return self.chat_list_navigationview.get_visible_page()
 
-    def push_or_pop(self, page_name:str):
+    def push_or_pop(self, page_name: str):
         if self.main_navigation_view.get_visible_page().get_tag() != page_name:
             GLib.idle_add(self.main_navigation_view.push_by_tag, page_name)
         else:
-            GLib.idle_add(self.main_navigation_view.pop_to_tag, 'chat')
+            GLib.idle_add(self.main_navigation_view.pop_to_tag, "chat")
 
     def open_available_model_page(self):
-        self.main_navigation_view.push_by_tag('model_manager')
-        self.model_manager.view_stack.set_visible_child_name('available_models')
+        self.main_navigation_view.push_by_tag("model_manager")
+        self.model_manager.view_stack.set_visible_child_name("available_models")
 
     def prepare_screenshoter(self):
-        #used to take screenshots of widgets for documentation
+        # used to take screenshots of widgets for documentation
         widget = self.get_focus().get_parent()
         while True:
-            if 'Alpaca' in repr(widget):
+            if "Alpaca" in repr(widget):
                 break
             widget = widget.get_parent()
 
         widget.unparent()
         Adw.ApplicationWindow(
-            width_request=640,
-            height_request=10,
-            content=widget
+            width_request=640, height_request=10, content=widget
         ).present()
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-        actions = [[{
-            'label': _('New Chat'),
-            'callback': lambda: self.get_application().lookup_action('new_chat').activate(),
-            'icon': 'chat-message-new-symbolic'
-        },{
-            'label': _('New Folder'),
-            'callback': lambda: self.get_application().lookup_action('new_folder').activate(),
-            'icon': 'folder-new-symbolic'
-        }]]
+        actions = [
+            [
+                {
+                    "label": _("New Chat"),
+                    "callback": lambda: self.get_application()
+                    .lookup_action("new_chat")
+                    .activate(),
+                    "icon": "chat-message-new-symbolic",
+                },
+                {
+                    "label": _("New Folder"),
+                    "callback": lambda: self.get_application()
+                    .lookup_action("new_folder")
+                    .activate(),
+                    "icon": "folder-new-symbolic",
+                },
+            ]
+        ]
         popover = Widgets.dialog.Popover(actions)
         popover.set_has_arrow(True)
         popover.set_halign(0)
@@ -386,57 +270,116 @@ class AlpacaWindow(Adw.ApplicationWindow):
         Widgets.preferences.set_zoom(Widgets.preferences.get_zoom())
 
         universal_actions = {
-            'new_chat': [lambda *_: self.get_chat_list_page().new_chat(), ['<primary>n']],
-            'new_folder': [lambda *_: self.get_chat_list_page().prompt_new_folder(), ['<primary>d']],
-            'import_chat': [lambda *_: Widgets.dialog.simple_file(
-                parent=self,
-                file_filters=[self.file_filter_db],
-                callback=self.on_chat_imported
-            )],
-            'duplicate_current_chat': [lambda *_: self.chat_bin.get_child().row.duplicate()],
-            'delete_current_chat': [lambda *_: self.chat_bin.get_child().row.prompt_delete(), ['<primary>w']],
-            'edit_current_chat': [lambda *_: self.chat_bin.get_child().row.prompt_edit(), ['F2']],
-            'export_current_chat': [lambda *_: self.chat_bin.get_child().row.prompt_export()],
-            'toggle_sidebar': [lambda *_: self.split_view_overlay.set_show_sidebar(not self.split_view_overlay.get_show_sidebar()), ['F9']],
-            'toggle_search': [lambda *_: self.toggle_searchbar(), ['<primary>f']],
-            'model_manager' : [lambda *_: self.push_or_pop('model_manager'), ['<primary>m']],
-            'model_manager_available' : [lambda *_: self.open_available_model_page()],
-            'instance_manager' : [lambda *_: self.push_or_pop('instance_manager'), ['<primary>i']],
-            'add_model_by_name' : [lambda *i: Widgets.dialog.simple_entry(
-                parent=self,
-                heading=_('Pull Model'),
-                body=_('Please enter the model name following this template: name:tag'),
-                callback=lambda name: Widgets.models.basic.confirm_pull_model(window=self, model_name=name),
-                entries={'placeholder': 'deepseek-r1:7b'}
-            )],
-            'reload_added_models': [lambda *_: GLib.idle_add(self.model_manager.update_added_model_list)],
-            'start_quick_ask': [lambda *_: self.get_application().create_quick_ask().present(), ['<primary><alt>a']],
-            'model_creator_existing': [lambda *_: Widgets.models.common.prompt_existing(self)],
-            'model_creator_gguf': [lambda *_: Widgets.models.common.prompt_gguf(self)],
-            'preferences': [lambda *_: Widgets.preferences.PreferencesDialog().present(self), ['<primary>comma']],
-            'zoom_in': [lambda *_: Widgets.preferences.zoom_in(), ['<primary>plus']],
-            'zoom_out': [lambda *_: Widgets.preferences.zoom_out(), ['<primary>minus']]
+            "new_chat": [
+                lambda *_: self.get_chat_list_page().new_chat(),
+                ["<primary>n"],
+            ],
+            "new_folder": [
+                lambda *_: self.get_chat_list_page().prompt_new_folder(),
+                ["<primary>d"],
+            ],
+            "import_chat": [
+                lambda *_: Widgets.dialog.simple_file(
+                    parent=self,
+                    file_filters=[self.file_filter_db],
+                    callback=self.on_chat_imported,
+                )
+            ],
+            "duplicate_current_chat": [
+                lambda *_: self.chat_bin.get_child().row.duplicate()
+            ],
+            "delete_current_chat": [
+                lambda *_: self.chat_bin.get_child().row.prompt_delete(),
+                ["<primary>w"],
+            ],
+            "edit_current_chat": [
+                lambda *_: self.chat_bin.get_child().row.prompt_edit(),
+                ["F2"],
+            ],
+            "export_current_chat": [
+                lambda *_: self.chat_bin.get_child().row.prompt_export()
+            ],
+            "toggle_sidebar": [
+                lambda *_: self.split_view_overlay.set_show_sidebar(
+                    not self.split_view_overlay.get_show_sidebar()
+                ),
+                ["F9"],
+            ],
+            "toggle_search": [lambda *_: self.toggle_searchbar(), ["<primary>f"]],
+            "model_manager": [
+                lambda *_: self.push_or_pop("model_manager"),
+                ["<primary>m"],
+            ],
+            "model_manager_available": [lambda *_: self.open_available_model_page()],
+            "instance_manager": [
+                lambda *_: self.push_or_pop("instance_manager"),
+                ["<primary>i"],
+            ],
+            "add_model_by_name": [
+                lambda *i: Widgets.dialog.simple_entry(
+                    parent=self,
+                    heading=_("Pull Model"),
+                    body=_(
+                        "Please enter the model name following this template: name:tag"
+                    ),
+                    callback=lambda name: Widgets.models.basic.confirm_pull_model(
+                        window=self, model_name=name
+                    ),
+                    entries={"placeholder": "deepseek-r1:7b"},
+                )
+            ],
+            "reload_added_models": [
+                lambda *_: GLib.idle_add(self.model_manager.update_added_model_list)
+            ],
+            "start_quick_ask": [
+                lambda *_: self.get_application().create_quick_ask().present(),
+                ["<primary><alt>a"],
+            ],
+            "model_creator_existing": [
+                lambda *_: Widgets.models.common.prompt_existing(self)
+            ],
+            "model_creator_gguf": [lambda *_: Widgets.models.common.prompt_gguf(self)],
+            "preferences": [
+                lambda *_: Widgets.preferences.PreferencesDialog().present(self),
+                ["<primary>comma"],
+            ],
+            "zoom_in": [lambda *_: Widgets.preferences.zoom_in(), ["<primary>plus"]],
+            "zoom_out": [lambda *_: Widgets.preferences.zoom_out(), ["<primary>minus"]],
         }
-        if os.getenv('ALPACA_ENABLE_SCREENSHOT_ACTION', '0') == '1':
-            universal_actions['screenshoter'] = [lambda *_: self.prepare_screenshoter(), ['F3']]
+        if os.getenv("ALPACA_ENABLE_SCREENSHOT_ACTION", "0") == "1":
+            universal_actions["screenshoter"] = [
+                lambda *_: self.prepare_screenshoter(),
+                ["F3"],
+            ]
 
         for action_name, data in universal_actions.items():
-            self.get_application().create_action(action_name, data[0], data[1] if len(data) > 1 else None)
+            self.get_application().create_action(
+                action_name, data[0], data[1] if len(data) > 1 else None
+            )
 
         def verify_powersaver_mode():
             self.banner.set_revealed(
-                Gio.PowerProfileMonitor.dup_default().get_power_saver_enabled() and
-                self.settings.get_value('powersaver-warning').unpack() and
-                self.get_current_instance().instance_type == 'ollama:managed'
+                Gio.PowerProfileMonitor.dup_default().get_power_saver_enabled()
+                and self.settings.get_value("powersaver-warning").unpack()
+                and self.get_current_instance().instance_type == "ollama:managed"
             )
-        Gio.PowerProfileMonitor.dup_default().connect("notify::power-saver-enabled", lambda *_: verify_powersaver_mode())
-        self.banner.connect('button-clicked', lambda *_: self.banner.set_revealed(False))
+
+        Gio.PowerProfileMonitor.dup_default().connect(
+            "notify::power-saver-enabled", lambda *_: verify_powersaver_mode()
+        )
+        self.banner.connect(
+            "button-clicked", lambda *_: self.banner.set_revealed(False)
+        )
 
         self.prepare_alpaca()
-        if self.settings.get_value('skip-welcome').unpack():
-            notice_dialog = Widgets.welcome.Notice()
-            if not self.settings.get_value('last-notice-seen').unpack() == notice_dialog.get_name():
-                notice_dialog.present(self)
-        else:
-            self.main_navigation_view.replace([Widgets.welcome.Welcome()])
 
+        # Check if NanoGPT is configured, otherwise show setup dialog
+        nanogpt_instances = [
+            i for i in SQL.get_instances() if i.get("type") == "nanogpt"
+        ]
+        if not nanogpt_instances:
+            # Show setup dialog instead of welcome
+            self.main_navigation_view.replace([Widgets.setup.SetupDialog()])
+        else:
+            # Normal startup - go directly to chat
+            pass

@@ -1,16 +1,16 @@
 <p align="center"><img src="https://jeffser.com/images/alpaca/logo.svg">
 <h1 align="center">Alpaca</h1>
 
-<p align="center">Alpaca is an <a href="https://github.com/ollama/ollama">Ollama</a> client where you can manage and chat with multiple models, Alpaca provides an easy and beginner friendly way of interacting with local AI, everything is open source and powered by Ollama.</p>
+<p align="center">Alpaca is a GNOME desktop AI chat client powered by <a href="https://nano-gpt.com">NanoGPT</a>. Chat with advanced AI models, search the web, generate images, and more - all with a beautiful native interface.</p>
 
-<p align="center">You can also use third party AI providers such as Gemini, ChatGPT and more!</p>
+<p align="center">Get started by signing up at <a href="https://nano-gpt.com">nano-gpt.com</a> and getting your API key.</p>
 
 <p align="center"><a href='https://flathub.org/apps/com.jeffser.Alpaca'><img width='190' alt='Download on Flathub' src='https://flathub.org/api/badge?locale=en'/></a></p>
 
 ---
 
 > [!WARNING]
-> This project is not affiliated at all with Ollama, I'm not responsible for any damages to your device or software caused by running code given by any AI models.
+> I am not responsible for any damages to your device or software caused by running code given by any AI models.
 
 > [!IMPORTANT]
 > Please be aware that [GNOME Code of Conduct](https://conduct.gnome.org) applies to Alpaca before interacting with this repository.
@@ -20,19 +20,27 @@
 
 ## Features!
 
-- Talk to multiple models in the same conversation
-- Pull and delete models from the app
-- Image recognition
-- Document recognition (plain text files)
+- Chat with advanced AI models via NanoGPT API
+- Web search with standard and deep search options
+- Automatic YouTube transcript extraction
+- Image generation from text descriptions
+- Context memory for unlimited conversation length
+- Vision/image recognition capabilities
 - Code highlighting
 - Multiple conversations
 - Notifications
 - Import / Export chats
 - Delete / Edit messages
 - Regenerate messages
-- YouTube recognition (Ask questions about a YouTube video using the transcript)
-- Website recognition (Ask questions about a certain website by pasting the URL)
-- Talk to cloud-hosted models with OpenAI-compatible APIs using your own API keys
+- Subscription and pay-per-use model support
+
+## Getting Started
+
+1. **Sign up** at [nano-gpt.com](https://nano-gpt.com)
+2. **Get your API key** from your account dashboard
+3. **Install Alpaca** from Flathub or build from source
+4. **Enter your API key** in the setup wizard
+5. **Start chatting** with your chosen model!</p>
 
 ## Screenies
 

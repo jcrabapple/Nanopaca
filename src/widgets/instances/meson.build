@@ -2,8 +2,7 @@ moduledir = get_option('prefix') / get_option('datadir') / meson.project_name() 
 
 instances = [
   '__init__.py',
-  'openai_instances.py',
-  'ollama_instances.py'
+  'openai_instances.py'
 ]
 
 install_data(instances, install_dir: moduledir)
