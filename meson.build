@@ -4,13 +4,13 @@ project('Alpaca', 'c',
   default_options: [ 'warning_level=2', 'werror=false', ],
 )
 
-i18n = import('i18n')
+# i18n = import('i18n')  # Temporarily disabled - msgfmt not available
 gnome = import('gnome')
 application_id = 'com.jeffser.Alpaca'
 
 subdir('data')
 subdir('src')
-subdir('po')
+# subdir('po')  # Temporarily disabled - msgfmt not available
 
 gnome.post_install(
      glib_compile_schemas: true,

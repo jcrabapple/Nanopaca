@@ -82,6 +82,7 @@
     <file alias="notice.ui">ui/notice.ui</file>
     <file alias="preferences.ui">ui/preferences.ui</file>
     <file alias="shortcuts.ui">ui/shortcuts.ui</file>
+    <file alias="setup.ui">ui/setup.ui</file>
     <file alias="widgets/instances/preferences.ui">ui/widgets/instances/preferences.ui</file>
     <file alias="widgets/message/popup.ui">ui/widgets/message/popup.ui</file>
     <file alias="widgets/message/message.ui">ui/widgets/message/message.ui</file>
@@ -107,7 +108,6 @@
     <file alias="widgets/blocks/generating_text.ui">ui/widgets/blocks/generating_text.ui</file>
     <file alias="widgets/blocks/text.ui">ui/widgets/blocks/text.ui</file>
     <file alias="widgets/blocks/thinking.ui">ui/widgets/blocks/thinking.ui</file>
-    <file alias="widgets/activities/web_browser.ui">ui/widgets/activities/web_browser.ui</file>
     <file alias="widgets/activities/background_remover.ui">ui/widgets/activities/background_remover.ui</file>
     <file alias="widgets/activities/background_remover_image.ui">ui/widgets/activities/background_remover_image.ui</file>
     <file alias="widgets/activities/camera.ui">ui/widgets/activities/camera.ui</file>

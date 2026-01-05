@@ -2,7 +2,6 @@
 
 from gi.repository import Gtk, Gio, Adw, GLib, Gdk
 from .background_remover import BackgroundRemover
-from .web_browser import WebBrowser
 from .live_chat import LiveChat
 from .terminal import Terminal, AttachmentCreator, CodeRunner, CodeEditor
 from .transcriber import Transcriber
@@ -14,26 +13,25 @@ import importlib.util
 
 last_activity_tabview = None
 
-@Gtk.Template(resource_path='/com/jeffser/Alpaca/widgets/activities/activity_dialog.ui')
+
+@Gtk.Template(resource_path="/com/jeffser/Alpaca/widgets/activities/activity_dialog.ui")
 class ActivityDialog(Adw.Dialog):
-    __gtype_name__ = 'AlpacaActivityDialog'
+    __gtype_name__ = "AlpacaActivityDialog"
 
     toolbarview = Gtk.Template.Child()
     headerbar = Gtk.Template.Child()
 
-    def __init__(self, page:Gtk.Widget):
+    def __init__(self, page: Gtk.Widget):
         self.page = page
-        super().__init__(
-            title=self.page.title
-        )
+        super().__init__(title=self.page.title)
 
         bb = generate_action_bar(self.page)
-        if self.page.extend_to_edge and self.page.__gtype_name__ != 'AlpacaLiveChat':
-            self.headerbar.add_css_class('osd')
+        if self.page.extend_to_edge and self.page.__gtype_name__ != "AlpacaLiveChat":
+            self.headerbar.add_css_class("osd")
             if bb:
-                bb.add_css_class('osd')
+                bb.add_css_class("osd")
         if bb:
-            for css_class in self.page.buttons.get('css', []):
+            for css_class in self.page.buttons.get("css", []):
                 bb.add_css_class(css_class)
 
         self.toolbarview.add_bottom_bar(bb)
@@ -53,9 +51,12 @@ class ActivityDialog(Adw.Dialog):
     def reload(self):
         self.page.on_reload()
 
-@Gtk.Template(resource_path='/com/jeffser/Alpaca/widgets/activities/activity_manager.ui')
+
+@Gtk.Template(
+    resource_path="/com/jeffser/Alpaca/widgets/activities/activity_manager.ui"
+)
 class ActivityManager(Adw.Bin):
-    __gtype_name__ = 'AlpacaActivityManager'
+    __gtype_name__ = "AlpacaActivityManager"
 
     navigationview = Gtk.Template.Child()
     taboverview = Gtk.Template.Child()
@@ -73,94 +74,95 @@ class ActivityManager(Adw.Bin):
         # LAUNCHER
         default_activities = [
             {
-                'title': _('Terminal'),
-                'icon': 'terminal-symbolic',
-                'builder': lambda: Terminal(
-                    language='auto',
-                    code_getter=lambda: 'bash'
+                "title": _("Terminal"),
+                "icon": "terminal-symbolic",
+                "builder": lambda: Terminal(
+                    language="auto", code_getter=lambda: "bash"
                 ),
-                #runner is optional
-                'runner': lambda term: term.run()
+                # runner is optional
+                "runner": lambda term: term.run(),
             },
             {
-                'title': _('Attachment Creator'),
-                'icon': 'document-text-symbolic',
-                'builder': AttachmentCreator
+                "title": _("Attachment Creator"),
+                "icon": "document-text-symbolic",
+                "builder": AttachmentCreator,
             },
+            {"title": _("Camera"), "icon": "camera-photo-symbolic", "builder": Camera},
             {
-                'title': _('Camera'),
-                'icon': 'camera-photo-symbolic',
-                'builder': Camera
+                "title": _("Latex Editor"),
+                "icon": "document-edit-symbolic",
+                "builder": LatexEditor,
             },
-            {
-                'title': _('Web Browser'),
-                'icon': 'globe-symbolic',
-                'builder': WebBrowser
-            },
-            {
-                'title': _('Latex Editor'),
-                'icon': 'document-edit-symbolic',
-                'builder': LatexEditor
-            }
         ]
 
-        if importlib.util.find_spec('kokoro') and importlib.util.find_spec('sounddevice'):
+        if importlib.util.find_spec("kokoro") and importlib.util.find_spec(
+            "sounddevice"
+        ):
             default_activities.append(
                 {
-                    'title': _('Live Chat'),
-                    'icon': 'headset-symbolic',
-                    'builder': LiveChat
+                    "title": _("Live Chat"),
+                    "icon": "headset-symbolic",
+                    "builder": LiveChat,
                 }
             )
 
-        if importlib.util.find_spec('whisper'):
+        if importlib.util.find_spec("whisper"):
             default_activities.append(
                 {
-                    'title': _('Transcriber'),
-                    'icon': 'music-note-single-symbolic',
-                    'builder': Transcriber
+                    "title": _("Transcriber"),
+                    "icon": "music-note-single-symbolic",
+                    "builder": Transcriber,
                 }
             )
 
-        if importlib.util.find_spec('rembg'):
+        if importlib.util.find_spec("rembg"):
             default_activities.append(
                 {
-                    'title': _('Background Remover'),
-                    'icon': 'image-missing-symbolic',
-                    'builder': BackgroundRemover
+                    "title": _("Background Remover"),
+                    "icon": "image-missing-symbolic",
+                    "builder": BackgroundRemover,
                 }
             )
 
         for activity in default_activities:
             row = Adw.ButtonRow(
-                title=activity.get('title'),
-                tooltip_text=activity.get('title'),
-                start_icon_name=activity.get('icon')
+                title=activity.get("title"),
+                tooltip_text=activity.get("title"),
+                start_icon_name=activity.get("icon"),
             )
-            row.connect('activated', lambda *_, ac=activity: self.start_activity(ac))
+            row.connect("activated", lambda *_, ac=activity: self.start_activity(ac))
             self.launcher_listbox.append(row)
 
-        self.navigationview.replace_with_tags(['launcher'])
+        self.navigationview.replace_with_tags(["launcher"])
 
         GLib.idle_add(self.update_mode)
 
     def update_mode(self):
-        #whether tabs are attachable or detachable
+        # whether tabs are attachable or detachable
         reattach = self.get_root().get_name() == "AlpacaActivityTabWindow"
-        self.action_activity_button.set_icon_name('pip-out-symbolic' if reattach else 'pip-in-symbolic')
-        self.action_activity_button.set_tooltip_text(_('Attach Activity') if reattach else _('Detach Activity'))
-        self.action_activity_button.connect('clicked', self.reattach_current_activity if reattach else self.detach_current_activity)
+        self.action_activity_button.set_icon_name(
+            "pip-out-symbolic" if reattach else "pip-in-symbolic"
+        )
+        self.action_activity_button.set_tooltip_text(
+            _("Attach Activity") if reattach else _("Detach Activity")
+        )
+        self.action_activity_button.connect(
+            "clicked",
+            self.reattach_current_activity
+            if reattach
+            else self.detach_current_activity,
+        )
 
     @Gtk.Template.Callback()
     def open_launcher(self, button=None):
-        self.navigationview.push_by_tag('launcher')
+        self.navigationview.push_by_tag("launcher")
 
     def start_activity(self, activity):
-        page = activity.get('builder')()
+        page = activity.get("builder")()
         if page:
             tab_page = self.tabview.append(page)
-            if activity.get('runner'):
-                activity.get('runner')(page)
+            if activity.get("runner"):
+                activity.get("runner")(page)
             tab_page.set_title(page.title)
             tab_page.set_icon(Gio.ThemedIcon.new(page.activity_icon))
 
@@ -174,8 +176,8 @@ class ActivityManager(Adw.Bin):
         tabpage.set_icon(Gio.ThemedIcon.new(tabpage.get_child().activity_icon))
         tabpage.set_thumbnail_yalign(0.5)
 
-        self.navigationview.replace_with_tags(['tab'])
-        if self.get_root().get_name() == 'AlpacaWindow':
+        self.navigationview.replace_with_tags(["tab"])
+        if self.get_root().get_name() == "AlpacaWindow":
             self.get_root().chat_split_view_overlay.set_show_sidebar(True)
             if len(tabview.get_pages()) == 1:
                 self.get_root().split_view_overlay.set_show_sidebar(False)
@@ -186,8 +188,8 @@ class ActivityManager(Adw.Bin):
     @Gtk.Template.Callback()
     def page_detached(self, tabview, tabpage, index):
         if len(tabview.get_pages()) == 0:
-            self.navigationview.replace_with_tags(['launcher'])
-            if self.get_root().get_name() == 'AlpacaWindow':
+            self.navigationview.replace_with_tags(["launcher"])
+            if self.get_root().get_name() == "AlpacaWindow":
                 self.get_root().chat_split_view_overlay.set_show_sidebar(False)
                 if not self.get_root().split_view_overlay.get_collapsed():
                     self.get_root().split_view_overlay.set_show_sidebar(True)
@@ -202,7 +204,7 @@ class ActivityManager(Adw.Bin):
     def page_changed(self, tabview, gparam):
         if tabview.get_selected_page():
             selected_child = tabview.get_selected_page().get_child()
-            self.navigationview.find_page('tab').set_title(selected_child.title)
+            self.navigationview.find_page("tab").set_title(selected_child.title)
             if self.bottom_bar:
                 self.tab_tbv.remove(self.bottom_bar)
                 self.bottom_bar = None
@@ -210,40 +212,48 @@ class ActivityManager(Adw.Bin):
             self.bottom_bar = generate_action_bar(selected_child, self.tabview)
             if self.bottom_bar:
                 self.tab_tbv.add_bottom_bar(self.bottom_bar)
-                for css_class in selected_child.buttons.get('css', []):
+                for css_class in selected_child.buttons.get("css", []):
                     self.bottom_bar.add_css_class(css_class)
-            if selected_child.extend_to_edge and selected_child.__gtype_name__ != 'AlpacaLiveChat':
-                self.tab_hb.add_css_class('osd')
+            if (
+                selected_child.extend_to_edge
+                and selected_child.__gtype_name__ != "AlpacaLiveChat"
+            ):
+                self.tab_hb.add_css_class("osd")
                 if self.bottom_bar:
-                    self.bottom_bar.add_css_class('osd')
+                    self.bottom_bar.add_css_class("osd")
             else:
-                self.tab_hb.remove_css_class('osd')
-            self.tab_tbv.set_extend_content_to_bottom_edge(selected_child.extend_to_edge)
+                self.tab_hb.remove_css_class("osd")
+            self.tab_tbv.set_extend_content_to_bottom_edge(
+                selected_child.extend_to_edge
+            )
             self.tab_tbv.set_extend_content_to_top_edge(selected_child.extend_to_edge)
 
     def reattach_current_activity(self, button):
-        tabview = self.get_root().application.main_alpaca_window.activity_manager.tabview
-        self.tabview.transfer_page(
-            self.tabview.get_selected_page(),
-            tabview,
-            0
+        tabview = (
+            self.get_root().application.main_alpaca_window.activity_manager.tabview
         )
+        self.tabview.transfer_page(self.tabview.get_selected_page(), tabview, 0)
         if len(self.tabview.get_pages()) == 0:
             self.get_root().close()
 
     def detach_current_activity(self, button):
         global last_activity_tabview
-        if not last_activity_tabview or not last_activity_tabview.get_root() or last_activity_tabview == self.tabview:
+        if (
+            not last_activity_tabview
+            or not last_activity_tabview.get_root()
+            or last_activity_tabview == self.tabview
+        ):
             last_activity_tabview = self.window_create()
         self.tabview.transfer_page(
-            self.tabview.get_selected_page(),
-            last_activity_tabview,
-            0
+            self.tabview.get_selected_page(), last_activity_tabview, 0
         )
 
-@Gtk.Template(resource_path='/com/jeffser/Alpaca/widgets/activities/activity_tab_window.ui')
+
+@Gtk.Template(
+    resource_path="/com/jeffser/Alpaca/widgets/activities/activity_tab_window.ui"
+)
 class ActivityTabWindow(Adw.ApplicationWindow):
-    __gtype_name__ = 'AlpacaActivityTabWindow'
+    __gtype_name__ = "AlpacaActivityTabWindow"
 
     activity_manager = Gtk.Template.Child()
 
@@ -265,48 +275,55 @@ class ActivityTabWindow(Adw.ApplicationWindow):
             self.activity_manager = None
         super().close()
 
-def generate_action_bar(page:Gtk.Widget, tabview:Gtk.Widget=None):
-    if not page or page.__gtype_name__ == 'AlpacaLiveChat':
-        return
-    action_bar = Gtk.ActionBar(
-        valign=2
-    )
 
-    for btn in page.buttons.get('start', []):
+def generate_action_bar(page: Gtk.Widget, tabview: Gtk.Widget = None):
+    if not page or page.__gtype_name__ == "AlpacaLiveChat":
+        return
+    action_bar = Gtk.ActionBar(valign=2)
+
+    for btn in page.buttons.get("start", []):
         btn.unparent()
         action_bar.pack_start(btn)
 
-    if page.buttons.get('center'):
-        page.buttons.get('center').unparent()
-        action_bar.set_center_widget(page.buttons.get('center'))
+    if page.buttons.get("center"):
+        page.buttons.get("center").unparent()
+        action_bar.set_center_widget(page.buttons.get("center"))
 
     if tabview:
         close_button = Gtk.Button(
-            tooltip_text=_('Close Activity'),
-            icon_name='window-close-symbolic',
-            css_classes=['flat'],
-            valign=3
+            tooltip_text=_("Close Activity"),
+            icon_name="window-close-symbolic",
+            css_classes=["flat"],
+            valign=3,
         )
-        close_button.connect('clicked', lambda button, tv=tabview: tv.close_page(tabview.get_selected_page()))
+        close_button.connect(
+            "clicked",
+            lambda button, tv=tabview: tv.close_page(tabview.get_selected_page()),
+        )
         action_bar.pack_end(close_button)
 
-    for btn in page.buttons.get('end', []):
+    for btn in page.buttons.get("end", []):
         btn.unparent()
         action_bar.pack_end(btn)
 
     return action_bar
 
-def show_activity(page:Gtk.Widget, root:Gtk.Widget, force_dialog:bool=False):
+
+def show_activity(page: Gtk.Widget, root: Gtk.Widget, force_dialog: bool = False):
     if not page or page.get_parent():
         return
 
-    if root.get_name() == 'AlpacaQuickAsk':
+    if root.get_name() == "AlpacaQuickAsk":
         force_dialog = True
 
-    if root.get_name() == 'AlpacaWindow' and root.settings.get_value('activity-mode').unpack() == 0 and not force_dialog:
+    if (
+        root.get_name() == "AlpacaWindow"
+        and root.settings.get_value("activity-mode").unpack() == 0
+        and not force_dialog
+    ):
         tab_page = root.activity_manager.tabview.append(page)
         return tab_page.get_child()
-    elif root.settings.get_value('activity-mode').unpack() == 1 or force_dialog:
+    elif root.settings.get_value("activity-mode").unpack() == 1 or force_dialog:
         dialog = ActivityDialog(page)
         dialog.present(root)
         return dialog
@@ -320,7 +337,8 @@ def show_activity(page:Gtk.Widget, root:Gtk.Widget, force_dialog:bool=False):
         tab_page = last_activity_tabview.append(page)
         return tab_page.get_child()
 
-def launch_detached_activity(page:Gtk.Widget, root):
+
+def launch_detached_activity(page: Gtk.Widget, root):
     if not page or page.get_parent():
         return
 
@@ -332,20 +350,19 @@ def launch_detached_activity(page:Gtk.Widget, root):
 
     last_activity_tabview.append(page)
 
+
 # Activity names for console arguments (e.g. --activity "camera")
 ARGUMENT_ACTIVITIES = {
-    'web-browser': WebBrowser,
-    'terminal': Terminal,
-    'attachment-creator': AttachmentCreator,
-    'camera': Camera
+    "terminal": Terminal,
+    "attachment-creator": AttachmentCreator,
+    "camera": Camera,
 }
 
-if importlib.util.find_spec('kokoro') and importlib.util.find_spec('sounddevice'):
-    ARGUMENT_ACTIVITIES['live-chat'] = LiveChat
+if importlib.util.find_spec("kokoro") and importlib.util.find_spec("sounddevice"):
+    ARGUMENT_ACTIVITIES["live-chat"] = LiveChat
 
-if importlib.util.find_spec('whisper'):
-    ARGUMENT_ACTIVITIES['transcriber'] = Transcriber
+if importlib.util.find_spec("whisper"):
+    ARGUMENT_ACTIVITIES["transcriber"] = Transcriber
 
-if importlib.util.find_spec('rembg'):
-    ARGUMENT_ACTIVITIES['background-remover'] = BackgroundRemover
-
+if importlib.util.find_spec("rembg"):
+    ARGUMENT_ACTIVITIES["background-remover"] = BackgroundRemover

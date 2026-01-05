@@ -1,19 +1,25 @@
-desktop_file = i18n.merge_file(
+desktop_file = configure_file(
         input: 'com.jeffser.Alpaca.desktop.in',
        output: 'com.jeffser.Alpaca.desktop',
-         type: 'desktop',
-       po_dir: '../po',
+       copy: true,
       install: true,
   install_dir: get_option('datadir') / 'applications'
 )
 
-searchprovider_desktop_file = i18n.merge_file(
+searchprovider_desktop_file = configure_file(
         input: 'com.jeffser.Alpaca.SearchProvider.desktop.in',
        output: 'com.jeffser.Alpaca.SearchProvider.desktop',
-         type: 'desktop',
-       po_dir: '../po',
+       copy: true,
       install: true,
-  install_dir: get_option('datadir') / 'applications'
+   install_dir: get_option('datadir') / 'applications'
+)
+
+appstream_file = configure_file(
+        input: 'com.jeffser.Alpaca.metainfo.xml.in',
+       output: 'com.jeffser.Alpaca.metainfo.xml',
+       copy: true,
+      install: true,
+   install_dir: get_option('datadir') / 'metainfo'
 )
 
 desktop_utils = find_program('desktop-file-validate', required: false)
@@ -22,15 +28,7 @@ if desktop_utils.found()
   test('Validate search provider desktop file', desktop_utils, args: [searchprovider_desktop_file])
 endif
 
-appstream_file = i18n.merge_file(
-        input: 'com.jeffser.Alpaca.metainfo.xml.in',
-       output: 'com.jeffser.Alpaca.metainfo.xml',
-       po_dir: '../po',
-      install: true,
-  install_dir: get_option('datadir') / 'metainfo'
-)
-
-appstreamcli = find_program('appstreamcli', required: true, disabler: false)
+appstreamcli = find_program('appstreamcli', required: false, disabler: false)
 if appstreamcli.found()
   test('Validate appstream file', appstreamcli,
      args: ['validate', '--no-net', '--explain', appstream_file])

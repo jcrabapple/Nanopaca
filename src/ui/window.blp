@@ -152,14 +152,16 @@ template $AlpacaWindow: Adw.ApplicationWindow {
                     margin-top: 12;
                     margin-bottom: 12;
 
-                    RadioButton standard_search {
+                    CheckButton standard_search {
                       label: _("Standard ($0.006)");
-                      group: deep_search;
                       active: true;
+                      group: deep_search;
+                      toggled => $on_web_search_standard_toggled();
                     }
 
-                    RadioButton deep_search {
+                    CheckButton deep_search {
                       label: _("Deep ($0.06)");
+                      toggled => $on_web_search_deep_toggled();
                     }
                   }
                 }

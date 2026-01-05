@@ -81,8 +81,8 @@ class AlpacaWindow(Adw.ApplicationWindow):
     # NanoGPT features
     context_memory_toggle = Gtk.Template.Child()
     web_search_depth_button = Gtk.Template.Child()
-    web_search_standard = Gtk.Template.Child()
-    web_search_deep = Gtk.Template.Child()
+    standard_search = Gtk.Template.Child()
+    deep_search = Gtk.Template.Child()
 
     @Gtk.Template.Callback()
     def chat_list_page_changed(self, navigationview, page=None):
@@ -116,7 +116,7 @@ class AlpacaWindow(Adw.ApplicationWindow):
                 )
             else:
                 instance = ins(instance_id=None, properties={})
-                    Widgets.instances.InstancePreferencesDialog(instance).present(self)
+                Widgets.instances.InstancePreferencesDialog(instance).present(self)
 
         options = {}
         Widgets.instances.update_instance_list(
@@ -124,14 +124,13 @@ class AlpacaWindow(Adw.ApplicationWindow):
             selected_instance_id=self.settings.get_value("selected-instance").unpack(),
         )
 
-    @Gtk.Template.Callback()
     def on_context_memory_toggled(self, toggle):
         """Toggle context memory for the current chat"""
         if toggle.get_active():
             toggle.add_css_class("suggested-action")
         else:
             toggle.remove_css_class("suggested-action")
-        
+
         # Update instance property
         instance = self.get_active_instance()
         if instance and instance.instance_type == "nanogpt":
@@ -144,7 +143,9 @@ class AlpacaWindow(Adw.ApplicationWindow):
             instance = self.get_active_instance()
             if instance and instance.instance_type == "nanogpt":
                 instance.properties["web_search_depth"] = "standard"
-                self.web_search_depth_button.set_tooltip_text(_("Standard Search ($0.006)"))
+                self.web_search_depth_button.set_tooltip_text(
+                    _("Standard Search ($0.006)")
+                )
 
     @Gtk.Template.Callback()
     def on_web_search_deep_toggled(self, radio):
@@ -154,6 +155,36 @@ class AlpacaWindow(Adw.ApplicationWindow):
             if instance and instance.instance_type == "nanogpt":
                 instance.properties["web_search_depth"] = "deep"
                 self.web_search_depth_button.set_tooltip_text(_("Deep Search ($0.06)"))
+
+    @Gtk.Template.Callback()
+    def chat_search_changed(self, search_entry):
+        """Handle chat search text changes"""
+        chat_list_page = self.get_chat_list_page()
+        if chat_list_page:
+            chat_list_page.on_search(search_entry.get_text())
+
+    @Gtk.Template.Callback()
+    def message_search_changed(self, search_entry):
+        """Handle message search text changes"""
+        pass
+
+    @Gtk.Template.Callback()
+    def instance_changed(self, listbox, row):
+        """Handle instance selection changes"""
+        pass
+
+    @Gtk.Template.Callback()
+    def closing_app(self, widget):
+        """Handle window close request"""
+        pass
+
+    def prepare_alpaca(self):
+        """Prepare the main Alpaca interface"""
+        pass
+
+    def send_message(self):
+        """Send message from global footer - called by message widget as callback"""
+        pass
 
     def on_setup_complete(self):
         """Called when setup wizard completes"""
@@ -361,7 +392,8 @@ class AlpacaWindow(Adw.ApplicationWindow):
             self.banner.set_revealed(
                 Gio.PowerProfileMonitor.dup_default().get_power_saver_enabled()
                 and self.settings.get_value("powersaver-warning").unpack()
-                and self.get_current_instance().instance_type == "ollama:managed"
+                and self.get_active_instance()
+                and self.get_active_instance().instance_type == "ollama:managed"
             )
 
         Gio.PowerProfileMonitor.dup_default().connect(
@@ -379,7 +411,8 @@ class AlpacaWindow(Adw.ApplicationWindow):
         ]
         if not nanogpt_instances:
             # Show setup dialog instead of welcome
-            self.main_navigation_view.replace([Widgets.setup.SetupDialog()])
+            setup_dialog = Widgets.setup.SetupDialog()
+            setup_dialog.present(self)
         else:
             # Normal startup - go directly to chat
             pass

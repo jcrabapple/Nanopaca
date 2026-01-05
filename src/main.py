@@ -21,25 +21,35 @@ Main script run at launch, handles actions, about dialog and the app itself (not
 """
 
 import gi
-gi.require_version('Gtk', '4.0')
-gi.require_version('Adw', '1')
-gi.require_version('Gdk', '4.0')
-gi.require_version('GtkSource', '5')
-gi.require_version('Spelling', '1')
-gi.require_version('Gst', '1.0')
-gi.require_version('Xdp', '1.0')
+
+gi.require_version("Gtk", "4.0")
+gi.require_version("Adw", "1")
+gi.require_version("Gdk", "4.0")
+gi.require_version("GtkSource", "5")
+gi.require_version("Spelling", "1")
+gi.require_version("Gst", "1.0")
+gi.require_version("Xdp", "1.0")
 gi.require_version("WebKit", "6.0")
-gi.require_version('Vte', '3.91')
+gi.require_version("Vte", "3.91")
 from gi.repository import Gtk, Gio, Adw, GLib, GtkSource
+
 GtkSource.init()
 
 from .widgets import activities
-from .constants import TRANSLATORS, LEGAL_NOTICE, cache_dir, data_dir, config_dir, source_dir
+from .constants import (
+    TRANSLATORS,
+    LEGAL_NOTICE,
+    cache_dir,
+    data_dir,
+    config_dir,
+    source_dir,
+)
 from .sql_manager import Instance as SQL
 
 SQL.initialize()
 
 import os
+
 os.environ["TORCH_HOME"] = os.path.join(data_dir, "torch")
 
 import sys
@@ -54,6 +64,7 @@ from datetime import datetime
 logger = logging.getLogger(__name__)
 
 parser = argparse.ArgumentParser(description="Alpaca")
+
 
 class AlpacaService:
     """
@@ -85,7 +96,7 @@ class AlpacaService:
         self.app = app
 
     def IsRunning(self):
-        return 'yeah'
+        return "yeah"
 
     def Present(self):
         self.app.props.active_window.present()
@@ -93,7 +104,7 @@ class AlpacaService:
     def PresentAsk(self):
         self.app.create_quick_ask().present()
 
-    def Open(self, chat_name:str):
+    def Open(self, chat_name: str):
         navigationview = self.app.props.active_window.chat_list_navigationview
         page = list(navigationview.get_navigation_stack())[0]
         navigationview.pop_to_page(page)
@@ -103,43 +114,57 @@ class AlpacaService:
                 self.Present()
                 return
 
-    def Create(self, chat_name:str):
+    def Create(self, chat_name: str):
         self.app.props.active_window.new_chat(chat_name)
         self.Present()
 
-    def Ask(self, message:str):
+    def Ask(self, message: str):
         time.sleep(1)
         quick_ask_window = self.app.create_quick_ask()
         quick_ask_window.present()
         quick_ask_window.write_and_send_message(message)
 
-    def Activity(self, activity_name:str):
+    def Activity(self, activity_name: str):
         page = activities.ARGUMENT_ACTIVITIES.get(activity_name)
         if page:
             activities.launch_detached_activity(page(), self.app.props.active_window)
 
+
 class AlpacaApplication(Adw.Application):
-    __gtype_name__ = 'AlpacaApplication'
+    __gtype_name__ = "AlpacaApplication"
 
     main_alpaca_window = None
 
     def __init__(self, version):
-        super().__init__(application_id='com.jeffser.Alpaca',
-                         flags=Gio.ApplicationFlags.DEFAULT_FLAGS)
-        self.create_action('quit', lambda *_: GLib.idle_add(self.main_alpaca_window.close), ['<primary>q'])
-        self.create_action('about', self.on_about_action)
-        self.create_action('shortcuts', lambda *_: GLib.idle_add(self.show_shortcuts_dialog), ['<primary>slash'])
+        super().__init__(
+            application_id="com.jeffser.Alpaca",
+            flags=Gio.ApplicationFlags.DEFAULT_FLAGS,
+        )
+        self.create_action(
+            "quit",
+            lambda *_: GLib.idle_add(self.main_alpaca_window.close),
+            ["<primary>q"],
+        )
+        self.create_action("about", self.on_about_action)
+        self.create_action(
+            "shortcuts",
+            lambda *_: GLib.idle_add(self.show_shortcuts_dialog),
+            ["<primary>slash"],
+        )
         self.version = version
         self.args = parser.parse_args()
 
     def run_arguments(self, app_service=None):
         if not app_service:
             app_service = AlpacaService(self)
-            if sys.platform in ('linux', 'linux2'):
+            if sys.platform in ("linux", "linux2"):
                 bus = SessionBus()
                 dbus_proxy = bus.get("org.freedesktop.DBus", "/org/freedesktop/DBus")
-                if not dbus_proxy.NameHasOwner('com.jeffser.Alpaca.Service'):
-                    bus.publish('com.jeffser.Alpaca.Service', ('/com/jeffser/Alpaca/Service', app_service))
+                if not dbus_proxy.NameHasOwner("com.jeffser.Alpaca.Service"):
+                    bus.publish(
+                        "com.jeffser.Alpaca.Service",
+                        ("/com/jeffser/Alpaca/Service", app_service),
+                    )
 
         # Handle arguments
         if self.args.activity:
@@ -152,8 +177,8 @@ class AlpacaApplication(Adw.Application):
         elif self.args.ask:
             app_service.Ask(self.args.ask)
         elif self.args.live_chat:  # DEPRECATED
-            logger.warning('--live-chat is deprecated, use --activity live-chat')
-            app_service.Activity('live-chat')
+            logger.warning("--live-chat is deprecated, use --activity live-chat")
+            app_service.Activity("live-chat")
         else:
             app_service.Present()
 
@@ -168,50 +193,57 @@ class AlpacaApplication(Adw.Application):
 
     def create_quick_ask(self):
         from .quick_ask import QuickAskWindow
+
         return QuickAskWindow(application=self)
 
     def do_activate(self):
         from .window import AlpacaWindow
+
         self.main_alpaca_window = AlpacaWindow(application=self)
+        self.main_alpaca_window.present()
         self.run_arguments()
 
-        if sys.platform == 'darwin': # MacOS
+        if sys.platform == "darwin":  # MacOS
             settings = Gtk.Settings.get_default()
             if settings:
-                settings.set_property('gtk-xft-antialias', 1)
-                settings.set_property('gtk-decoration-layout', 'close,minimize,maximize:menu')
-                settings.set_property('gtk-font-name', 'Microsoft Sans Serif')
-                settings.set_property('gtk-xft-dpi', 110592)
-            win.add_css_class('macos')
-        elif sys.platform == 'win32': # Windows
+                settings.set_property("gtk-xft-antialias", 1)
+                settings.set_property(
+                    "gtk-decoration-layout", "close,minimize,maximize:menu"
+                )
+                settings.set_property("gtk-font-name", "Microsoft Sans Serif")
+                settings.set_property("gtk-xft-dpi", 110592)
+            win.add_css_class("macos")
+        elif sys.platform == "win32":  # Windows
             settings = Gtk.Settings.get_default()
             if settings:
-                settings.set_property('gtk-font-name', 'Segoe UI')
+                settings.set_property("gtk-font-name", "Segoe UI")
 
     def on_about_action(self, widget, a):
         current_year = str(datetime.now().year)
         about = Adw.AboutDialog(
-            application_name='Alpaca',
-            application_icon='com.jeffser.Alpaca',
-            developer_name='Jeffry Samuel Eduarte Rojas',
+            application_name="Alpaca",
+            application_icon="com.jeffser.Alpaca",
+            developer_name="Jeffry Samuel Eduarte Rojas",
             version=self.version,
             release_notes_version=self.version,
             support_url="https://jeffser.com/alpaca/support.html",
-            developers=['Jeffser https://jeffser.com'],
+            developers=["Jeffser https://jeffser.com"],
             designers=[
-                'Jeffser https://jeffser.com', 
-                'Tobias Bernard (App Icon) https://tobiasbernard.com/'
+                "Jeffser https://jeffser.com",
+                "Tobias Bernard (App Icon) https://tobiasbernard.com/",
             ],
-            translator_credits='\n'.join(TRANSLATORS),
-            copyright=f'© {current_year} Alpaca, Jeffry Samuel Eduarte Rojas\n\n{LEGAL_NOTICE}',
-            issue_url='https://github.com/Jeffser/Alpaca/issues',
+            translator_credits="\n".join(TRANSLATORS),
+            copyright=f"© {current_year} Alpaca, Jeffry Samuel Eduarte Rojas\n\n{LEGAL_NOTICE}",
+            issue_url="https://github.com/Jeffser/Alpaca/issues",
             license_type=Gtk.License.GPL_3_0,
-            website="https://jeffser.com/alpaca"
+            website="https://jeffser.com/alpaca",
         )
-        
+
         about.add_link(_("Documentation"), "https://jeffser.com/alpaca/alpaca.html")
         about.add_link(_("Become a Sponsor"), "https://github.com/sponsors/Jeffser")
-        about.add_link(_("Discussions"), "https://github.com/Jeffser/Alpaca/discussions")
+        about.add_link(
+            _("Discussions"), "https://github.com/Jeffser/Alpaca/discussions"
+        )
         about.present(self.main_alpaca_window)
 
     def create_action(self, name, callback, shortcuts=None):
@@ -221,27 +253,51 @@ class AlpacaApplication(Adw.Application):
         if shortcuts:
             self.set_accels_for_action(f"app.{name}", shortcuts)
 
+
 def main(version):
     logging.basicConfig(
         format="%(levelname)s\t[%(filename)s | %(funcName)s] %(message)s",
         level=logging.INFO,
-        handlers=[logging.StreamHandler(stream=sys.stdout)]
+        handlers=[logging.StreamHandler(stream=sys.stdout)],
     )
 
     for directory in (cache_dir, data_dir, config_dir, source_dir):
         if not os.path.isdir(directory):
             os.mkdir(directory)
 
-    parser.add_argument('--version', action='store_true', help='display the application version')
-    parser.add_argument('--quick-ask', action='store_true', help='open Quick Ask')
-    parser.add_argument('--list-chats', action='store_true', help='display all the current chats in root directory')
-    parser.add_argument('--list-activities', action='store_true', help='display all activities that can be launched with --activity')
+    parser.add_argument(
+        "--version", action="store_true", help="display the application version"
+    )
+    parser.add_argument("--quick-ask", action="store_true", help="open Quick Ask")
+    parser.add_argument(
+        "--list-chats",
+        action="store_true",
+        help="display all the current chats in root directory",
+    )
+    parser.add_argument(
+        "--list-activities",
+        action="store_true",
+        help="display all activities that can be launched with --activity",
+    )
 
-    parser.add_argument('--activity', type=str, metavar='ACTIVITY', help='open an activity directly')
-    parser.add_argument('--new-chat', type=str, metavar='CHAT', help='start a new chat with the specified title')
-    parser.add_argument('--ask', type=str, metavar='"MESSAGE"', help='open Quick Ask with a message')
+    parser.add_argument(
+        "--activity", type=str, metavar="ACTIVITY", help="open an activity directly"
+    )
+    parser.add_argument(
+        "--new-chat",
+        type=str,
+        metavar="CHAT",
+        help="start a new chat with the specified title",
+    )
+    parser.add_argument(
+        "--ask", type=str, metavar='"MESSAGE"', help="open Quick Ask with a message"
+    )
 
-    parser.add_argument('--live-chat', action='store_true', help='open Live Chat (DEPRECATED, USE --activity live-chat)')
+    parser.add_argument(
+        "--live-chat",
+        action="store_true",
+        help="open Live Chat (DEPRECATED, USE --activity live-chat)",
+    )
     args = parser.parse_args()
 
     if args.version:
@@ -258,7 +314,7 @@ def main(version):
         sys.exit(0)
 
     if args.list_activities:
-        print(*activities.ARGUMENT_ACTIVITIES, sep='\n')
+        print(*activities.ARGUMENT_ACTIVITIES, sep="\n")
         sys.exit(0)
 
     logger.info(f"Alpaca version: {version}")
@@ -267,8 +323,10 @@ def main(version):
     # Check if Alpaca is already running and parse the args
     try:
         bus = SessionBus()
-        app_service = bus.get('com.jeffser.Alpaca.Service', '/com/jeffser/Alpaca/Service')
-        application.run_arguments(app_service['com.jeffser.Alpaca.Service'])
+        app_service = bus.get(
+            "com.jeffser.Alpaca.Service", "/com/jeffser/Alpaca/Service"
+        )
+        application.run_arguments(app_service["com.jeffser.Alpaca.Service"])
         sys.exit(0)
     except Exception as e:
         pass

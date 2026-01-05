@@ -13,18 +13,20 @@ import gi
 
 gi.require_version("Gtk", "4.0")
 gi.require_version("Adw", "1")
-from gi.repository import Gtk, Adw, Gio, GLib
+from gi.repository import Gtk, Adw, Gio, GLib, GObject
 
 import requests, json, logging
 from ..sql_manager import generate_uuid, Instance as SQL
-from .. import dialog
+from . import dialog
 
 logger = logging.getLogger(__name__)
 
 
 @Gtk.Template(resource_path="/com/jeffser/Alpaca/setup.ui")
-class SetupDialog(Adw.NavigationView):
+class SetupDialog(Adw.Dialog):
     __gtype_name__ = "AlpacaSetupDialog"
+
+    navigationview = Gtk.Template.Child()
 
     # Page 1: Welcome
     welcome_page = Gtk.Template.Child()
@@ -65,8 +67,9 @@ class SetupDialog(Adw.NavigationView):
     @Gtk.Template.Callback()
     def on_get_started(self, button):
         """Navigate to API key page"""
-        self.push(self.api_key_page)
+        self.navigationview.push(self.api_key_page)
 
+    @Gtk.Template.Callback()
     def on_test_api_key(self, button):
         """Validate API key by checking balance"""
         api_key = self.api_key_entry.get_text().strip()
@@ -119,7 +122,7 @@ class SetupDialog(Adw.NavigationView):
             return
 
         # Push model page
-        self.push(self.model_page)
+        self.navigationview.push(self.model_page)
 
         # Fetch models
         self.fetch_models()

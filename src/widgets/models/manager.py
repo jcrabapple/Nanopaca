@@ -58,7 +58,8 @@ class ModelManager(Adw.NavigationPage):
             if btn.get_visible():
                 self.available_model_stack.set_visible_child_name('content')
                 return
-        if self.get_root().get_current_instance().instance_type == 'empty':
+        current_instance = self.get_root().get_active_instance()
+        if current_instance and current_instance.instance_type == 'empty':
             self.available_model_stack.set_visible_child_name('no-results' if len(list(self.available_model_flowbox)) > 0 else 'no-instances')
         else:
             self.available_model_stack.set_visible_child_name('no-results' if len(list(self.available_model_flowbox)) > 0 else 'no-models')
@@ -72,7 +73,7 @@ class ModelManager(Adw.NavigationPage):
 
     def update_available_model_list(self):
         self.available_model_flowbox.remove_all()
-        instance = self.get_root().get_current_instance()
+        instance = self.get_root().get_active_instance()
         common.set_available_models_data(instance.get_available_models())
         available_models_data = common.get_available_models_data()
 
@@ -124,7 +125,7 @@ class ModelManager(Adw.NavigationPage):
     def update_added_model_list(self):
         self.added_model_flowbox.remove_all()
         added.empty_model_selector()
-        instance = self.get_root().get_current_instance()
+        instance = self.get_root().get_active_instance()
 
         # Normal Models
         instance.local_models = None # Reset cache

@@ -1,16 +1,15 @@
 using Gtk 4.0;
 using Adw 1;
 
-template $AlpacaSetupDialog : Adw.NavigationView {
-  default-width: 450;
-  default-height: 500;
-  hexpand: true;
-  vexpand: true;
+template $AlpacaSetupDialog : Adw.Dialog {
+  content-width: 450;
+  content-height: 500;
 
-  Adw.NavigationPage welcome_page {
+  Adw.NavigationView navigationview {
+    Adw.NavigationPage welcome_page {
     title: _("Welcome to Alpaca");
 
-    Adw.Box {
+    Gtk.Box {
       orientation: vertical;
       spacing: 24;
       margin-start: 36;
@@ -60,7 +59,7 @@ template $AlpacaSetupDialog : Adw.NavigationView {
   Adw.NavigationPage api_key_page {
     title: _("API Key");
 
-    Adw.Box {
+    Gtk.Box {
       orientation: vertical;
       spacing: 24;
       margin-start: 24;
@@ -70,9 +69,9 @@ template $AlpacaSetupDialog : Adw.NavigationView {
       vexpand: true;
 
       Adw.Clamp {
-        maximum-width: 400;
+        maximum-size: 400;
 
-        Adw.Box {
+        Gtk.Box {
           orientation: vertical;
           spacing: 12;
 
@@ -83,7 +82,7 @@ template $AlpacaSetupDialog : Adw.NavigationView {
           }
 
           Gtk.Label {
-            label: _("Your API key is stored securely and used only to make requests to NanoGPT"));
+            label: _("Your API key is stored securely and used only to make requests to NanoGPT");
             wrap: true;
             wrap-mode: word;
             styles ["dim-label"]
@@ -91,8 +90,6 @@ template $AlpacaSetupDialog : Adw.NavigationView {
 
           Adw.PasswordEntryRow api_key_entry {
             title: _("API Key");
-            show-peek-icon: true;
-            activates: true;
           }
 
           Gtk.Button test_api_key_button {
@@ -110,7 +107,7 @@ template $AlpacaSetupDialog : Adw.NavigationView {
             styles ["dim-label"]
           }
 
-          Gtk.Label {
+          Gtk.Label balance_label {
             label: _("Balance: --");
             styles ["title-3"]
             halign: center;
@@ -132,7 +129,7 @@ template $AlpacaSetupDialog : Adw.NavigationView {
   Adw.NavigationPage model_page {
     title: _("Select Model");
 
-    Adw.Box {
+    Gtk.Box {
       orientation: vertical;
       spacing: 24;
       margin-start: 24;
@@ -142,9 +139,9 @@ template $AlpacaSetupDialog : Adw.NavigationView {
       vexpand: true;
 
       Adw.Clamp {
-        maximum-width: 400;
+        maximum-size: 400;
 
-        Adw.Box {
+        Gtk.Box {
           orientation: vertical;
           spacing: 12;
 
@@ -155,7 +152,7 @@ template $AlpacaSetupDialog : Adw.NavigationView {
           }
 
           Gtk.Label {
-            label: _("Select a default model for your chats. You can change this later in settings."));
+            label: _("Select a default model for your chats. You can change this later in settings.");
             wrap: true;
             wrap-mode: word;
             styles ["dim-label"]
@@ -163,11 +160,10 @@ template $AlpacaSetupDialog : Adw.NavigationView {
 
           Gtk.DropDown model_dropdown {
             hexpand: true;
-            factory-type: list;
           }
 
           Gtk.Label model_description_label {
-            label: _("Select a model to see its description"));
+            label: _("Select a model to see its description");
             wrap: true;
             wrap-mode: word;
             styles ["dim-label"]
@@ -183,5 +179,6 @@ template $AlpacaSetupDialog : Adw.NavigationView {
         clicked => $on_finish_setup();
       }
     }
+  }
   }
 }

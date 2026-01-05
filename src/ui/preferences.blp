@@ -70,7 +70,6 @@ template $AlpacaPreferencesDialog: Adw.PreferencesDialog {
 
       Adw.PasswordEntryRow nanogpt_api_key {
         title: _("API Key");
-        show-peek-icon: true;
       }
 
       Adw.ActionRow {
@@ -171,7 +170,7 @@ template $AlpacaPreferencesDialog: Adw.PreferencesDialog {
         Gtk.TextView system_prompt {
           height-request: 100;
           wrap-mode: word;
-          valign: expand;
+          valign: fill;
         }
       }
     }
