@@ -193,7 +193,6 @@ class SetupDialog(Adw.Dialog):
                 "default_model": self.selected_model,
                 "temperature": 0.7,
                 "max_tokens": 4096,
-                "web_search_enabled": False,
                 "web_search_depth": "standard",
                 "auto_youtube_transcripts": True,
                 "context_memory_enabled": False,

@@ -5,7 +5,7 @@ Handles the message widget
 
 import gi
 from gi.repository import Gtk, Gio, Adw, GLib, Gdk, GtkSource, Spelling
-import os, datetime, threading, sys, base64, logging, re, tempfile
+import os, datetime, threading, sys, base64, logging, re, tempfile, importlib.util
 from ..sql_manager import prettify_model_name, generate_uuid, format_datetime, Instance as SQL
 from . import attachments, blocks, dialog, voice, tools, models, chat, activities
 
@@ -76,6 +76,8 @@ class OptionPopup(Gtk.Popover):
                 tools = {selected_tool.name: selected_tool}
             elif selected_tool.name == 'auto_tool':
                 tools = {t.name: t for t in list(self.get_root().global_footer.tool_selector.get_model()) if t.runnable}
+            elif self.get_root().global_footer.web_search_toggle.get_active():
+                tools = {t.name: t for t in list(self.get_root().global_footer.tool_selector.get_model()) if t.name == 'web_search'}
 
             if len(tools) > 0:
                 threading.Thread(
@@ -462,6 +464,8 @@ class GlobalMessageTextView(GtkSource.View):
 class GlobalActionStack(Gtk.Stack):
     __gtype_name__ = 'AlpacaGlobalActionStack'
 
+    web_search_toggle = None
+
     @Gtk.Template.Callback()
     def stop_message(self, button=None):
         self.get_root().chat_bin.get_child().stop_message()
@@ -477,6 +481,8 @@ class GlobalActionStack(Gtk.Stack):
             parent_footer.send_callback(0, {selected_tool.name: selected_tool})
         elif selected_tool.name == 'auto_tool':
             parent_footer.send_callback(0, {t.name: t for t in list(parent_footer.tool_selector.get_model()) if t.runnable})
+        elif parent_footer.web_search_toggle.get_active():
+            parent_footer.send_callback(0, {t.name: t for t in list(parent_footer.tool_selector.get_model()) if t.name == 'web_search'})
         else:
             parent_footer.send_callback(0)
 
@@ -524,6 +530,10 @@ class GlobalFooter(Gtk.Box):
     model_selector = Gtk.Template.Child()
     tool_selector = Gtk.Template.Child()
     wrap_box = Gtk.Template.Child()
+    web_search_toggle = Gtk.Template.Child()
+    web_search_depth_button = Gtk.Template.Child()
+    standard_search = Gtk.Template.Child()
+    deep_search = Gtk.Template.Child()
 
     def __init__(self):
         self.send_callback = None
@@ -541,7 +551,34 @@ class GlobalFooter(Gtk.Box):
         self.model_selector.selector.connect('notify::selected', lambda dropdown, gparam: self.tool_selector.model_changed(dropdown))
         self.action_stack.set_sensitive(len(models.added.model_selector_model) > 0)
         models.added.model_selector_model.connect('notify::n-items', lambda m, p: self.action_stack.set_sensitive(len(m) > 0))
+
+        # Web search functionality temporarily disabled
         GLib.idle_add(self.set_send_callback)
+
+    @Gtk.Template.Callback()
+    def on_web_search_toggled(self, toggle):
+        """Handle web search toggle button"""
+        self.web_search_depth_button.set_sensitive(toggle.get_active())
+        if toggle.get_active():
+            toggle.add_css_class("suggested-action")
+        else:
+            toggle.remove_css_class("suggested-action")
+
+    @Gtk.Template.Callback()
+    def on_web_search_standard_toggled(self, toggle):
+        """Handle standard search depth selection"""
+        if toggle.get_active():
+            instance = self.get_root().get_current_instance()
+            if instance and instance.instance_type == "nanogpt":
+                instance.properties["web_search_depth"] = "standard"
+
+    @Gtk.Template.Callback()
+    def on_web_search_deep_toggled(self, toggle):
+        """Handle deep search depth selection"""
+        if toggle.get_active():
+            instance = self.get_root().get_current_instance()
+            if instance and instance.instance_type == "nanogpt":
+                instance.properties["web_search_depth"] = "deep"
 
     def set_send_callback(self):
         live_chat = self.get_ancestor(activities.LiveChat)

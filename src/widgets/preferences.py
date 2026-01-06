@@ -37,8 +37,6 @@ class PreferencesDialog(Adw.PreferencesDialog):
     default_model = Gtk.Template.Child()
     title_model = Gtk.Template.Child()
     subscription_only = Gtk.Template.Child()
-    web_search_enabled = Gtk.Template.Child()
-    web_search_depth = Gtk.Template.Child()
     temperature_slider = Gtk.Template.Child()
     max_tokens = Gtk.Template.Child()
     system_prompt_row = Gtk.Template.Child()
@@ -195,10 +193,6 @@ class PreferencesDialog(Adw.PreferencesDialog):
                 properties["api"] = self.nanogpt_api_key.get_text()
                 properties["temperature"] = self.temperature_slider.get_value()
                 properties["max_tokens"] = int(self.max_tokens.get_value())
-                properties["web_search_enabled"] = self.web_search_enabled.get_active()
-                properties["web_search_depth"] = (
-                    "standard" if self.web_search_depth.get_selected() == 0 else "deep"
-                )
                 properties["auto_youtube_transcripts"] = (
                     self.auto_youtube_transcripts.get_active()
                 )
@@ -243,13 +237,6 @@ class PreferencesDialog(Adw.PreferencesDialog):
                 # Load generation parameters
                 self.temperature_slider.set_value(properties.get("temperature", 0.7))
                 self.max_tokens.set_value(properties.get("max_tokens", 4096))
-
-                # Load web search settings
-                self.web_search_enabled.set_active(
-                    properties.get("web_search_enabled", False)
-                )
-                depth = properties.get("web_search_depth", "standard")
-                self.web_search_depth.set_selected(0 if depth == "standard" else 1)
 
                 # Load advanced features
                 self.auto_youtube_transcripts.set_active(

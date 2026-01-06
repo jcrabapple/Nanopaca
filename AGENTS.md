@@ -57,14 +57,15 @@ from ..sql_manager import Instance as SQL
 ```
 
 ### Formatting & Naming
-- **Max line length**: 200 characters
+- **Max line length**: 200 characters (enforced by pylint)
 - **Files**: `snake_case.py`
-- **Classes**: `PascalCase`
-- **Functions/Methods**: `snake_case()`
-- **Constants**: `SCREAMING_SNAKE_CASE`
-- **Private**: Prefix with `_` (e.g., `_scroll_timeout_id`)
+- **Classes**: `PascalCase` (e.g., `Message`, `BackgroundRemover`, `LiveChat`)
+- **Functions/Methods**: `snake_case()` (e.g., `generate_uuid()`, `format_datetime()`)
+- **Constants**: `SCREAMING_SNAKE_CASE` (e.g., `TRANSLATORS`, `cache_dir`, `data_dir`)
+- **Private**: Prefix with `_` (e.g., `_scroll_timeout_id`, `_update_ui()`)
 - **GTK widgets**: `__gtype_name__ = 'AlpacaWidgetName'`
 - **Type hints**: Encouraged (`def function(param: str) -> dict:`)
+- **Return types**: Use Union when multiple types possible (`-> str or None`)
 - **Logging**: `logger = logging.getLogger(__name__)`
 
 ### Translation (i18n)
@@ -85,16 +86,24 @@ class MyWidget(Adw.Bin):
         self.label.set_label(_("Button clicked!"))
 ```
 
+### Error Handling
+- Use try-except blocks for error-prone operations (file I/O, JSON parsing)
+- Log errors with `logger.error(e)` or `logger.warning()`
+- Don't expose API keys or sensitive data in logs or exceptions
+- Gracefully handle missing dependencies
+
 ### Threading
 All GTK operations must run on main thread. Use `GLib.idle_add()` to return from background threads:
 ```python
 GLib.idle_add(update_ui_function, arg1, arg2)
 GLib.timeout_add(1000, callback_function)  # milliseconds
 ```
+Never block the main thread with long-running operations. Use threading for API calls, file operations, and heavy computations.
 
 ## File Structure
 - `src/main.py` - Application entry, DBus, CLI args
 - `src/window.py` - Main window
+- `src/quick_ask.py` - Quick Ask window
 - `src/constants.py` - Constants
 - `src/sql_manager.py` - SQLite database
 - `src/widgets/` - Widget implementations (chat.py, message.py, blocks/, activities/, instances/, models/, tools/)

@@ -137,36 +137,6 @@ template $AlpacaWindow: Adw.ApplicationWindow {
                 styles ["suggested-action"]
               }
 
-              [start]
-              MenuButton web_search_depth_button {
-                icon-name: "globe-symbolic";
-                tooltip-text: _("Web Search Depth");
-                sensitive: false;
-
-                Popover {
-                  Box {
-                    orientation: vertical;
-                    spacing: 6;
-                    margin-start: 12;
-                    margin-end: 12;
-                    margin-top: 12;
-                    margin-bottom: 12;
-
-                    CheckButton standard_search {
-                      label: _("Standard ($0.006)");
-                      active: true;
-                      group: deep_search;
-                      toggled => $on_web_search_standard_toggled();
-                    }
-
-                    CheckButton deep_search {
-                      label: _("Deep ($0.06)");
-                      toggled => $on_web_search_deep_toggled();
-                    }
-                  }
-                }
-              }
-
               [end]
               ToggleButton show_activities_toggle {
                 icon-name: "sidebar-show-right-symbolic";

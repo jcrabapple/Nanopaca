@@ -375,7 +375,6 @@ class NanoGPT(BaseInstance):
         "seed": 0,
         "default_model": None,
         "title_model": None,
-        "web_search_enabled": False,
         "web_search_depth": "standard",
         "auto_youtube_transcripts": True,
         "context_memory_enabled": False,

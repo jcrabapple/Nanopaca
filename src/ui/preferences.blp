@@ -137,21 +137,6 @@ template $AlpacaPreferencesDialog: Adw.PreferencesDialog {
         subtitle: _("Filter model list to subscription-included models");
       }
 
-      Adw.SwitchRow web_search_enabled {
-        title: _("Enable Web Search");
-        subtitle: _("Allow the model to search the web");
-      }
-
-      Adw.ComboRow web_search_depth {
-        title: _("Search Depth");
-
-        model: StringList {
-          strings [
-            "Standard ($0.006 per search)",
-            "Deep ($0.06 per search)"
-          ]
-        };
-      }
     }
 
     Adw.PreferencesGroup {

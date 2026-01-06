@@ -80,9 +80,6 @@ class AlpacaWindow(Adw.ApplicationWindow):
 
     # NanoGPT features
     context_memory_toggle = Gtk.Template.Child()
-    web_search_depth_button = Gtk.Template.Child()
-    standard_search = Gtk.Template.Child()
-    deep_search = Gtk.Template.Child()
 
     @Gtk.Template.Callback()
     def chat_list_page_changed(self, navigationview, page=None):
@@ -117,36 +114,11 @@ class AlpacaWindow(Adw.ApplicationWindow):
         )
 
     def on_context_memory_toggled(self, toggle):
-        """Toggle context memory for the current chat"""
+        """Toggle context memory for current chat"""
         if toggle.get_active():
             toggle.add_css_class("suggested-action")
         else:
             toggle.remove_css_class("suggested-action")
-
-        # Update instance property
-        instance = self.get_active_instance()
-        if instance and instance.instance_type == "nanogpt":
-            instance.properties["context_memory_enabled"] = toggle.get_active()
-
-    @Gtk.Template.Callback()
-    def on_web_search_standard_toggled(self, radio):
-        """Set web search to standard depth"""
-        if radio.get_active():
-            instance = self.get_active_instance()
-            if instance and instance.instance_type == "nanogpt":
-                instance.properties["web_search_depth"] = "standard"
-                self.web_search_depth_button.set_tooltip_text(
-                    _("Standard Search ($0.006)")
-                )
-
-    @Gtk.Template.Callback()
-    def on_web_search_deep_toggled(self, radio):
-        """Set web search to deep depth"""
-        if radio.get_active():
-            instance = self.get_active_instance()
-            if instance and instance.instance_type == "nanogpt":
-                instance.properties["web_search_depth"] = "deep"
-                self.web_search_depth_button.set_tooltip_text(_("Deep Search ($0.06)"))
 
     @Gtk.Template.Callback()
     def chat_search_changed(self, search_entry):
